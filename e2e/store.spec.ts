@@ -53,6 +53,13 @@ test("ストアを作って公開し、削除する", async ({ page, browser, ba
   await expect(visitorPage.getByRole("heading", { name: STORE_NAME })).toBeVisible()
   await expect(visitorPage.getByText(DESCRIPTION)).toBeVisible()
 
+  // signed out: the top page is the store list; the order history asks to sign in
+  await visitorPage.goto(`${baseURL}/`)
+  await expect(visitorPage).toHaveURL(`${baseURL}/stores`)
+  await expect(visitorPage.getByRole("link", { name: new RegExp(STORE_NAME) })).toBeVisible()
+  await visitorPage.goto(`${baseURL}/orders`)
+  await expect(visitorPage.locator('input[name="password"]')).toBeVisible()
+
   // delete
   await page.getByLabel("確認のためストア ID を入力").fill(SLUG)
   await page.getByRole("button", { name: "削除する" }).click()
@@ -65,7 +72,7 @@ test("ストアを作って公開し、削除する", async ({ page, browser, ba
 
   // logout ends the IdP session too
   await page.getByRole("button", { name: "ログアウト" }).click()
-  await expect(page).toHaveURL(`${baseURL}/`)
-  await page.getByRole("button", { name: "Candy Rain ID でログイン" }).click()
+  await expect(page).toHaveURL(`${baseURL}/stores`)
+  await page.getByRole("banner").getByRole("button", { name: "ログイン" }).click()
   await expect(page.locator('input[name="password"]')).toBeVisible()
 })
