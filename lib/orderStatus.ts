@@ -16,16 +16,9 @@ const OWNER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   CANCELED: [],
 }
 
-const BUYER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  RECEIVED: ["CANCELED"],
-  PAID: [],
-  SHIPPED: [],
-  CANCELED: [],
-}
-
-export function canTransition(actor: "owner" | "buyer", from: OrderStatus, to: OrderStatus): boolean {
-  const table = actor === "owner" ? OWNER_TRANSITIONS : BUYER_TRANSITIONS
-  return table[from].includes(to)
+// 注文の状態を変えられるのはストアのオーナーだけ（購入者は自分でキャンセルできない）
+export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
+  return OWNER_TRANSITIONS[from].includes(to)
 }
 
 export function nextOwnerStatuses(from: OrderStatus): OrderStatus[] {

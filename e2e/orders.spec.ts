@@ -106,10 +106,8 @@ test("2 つのストアで注文し、オーナーとして注文を進める", 
   await expect(page.getByText("銀行振込でお支払いください（E2E-A）")).toBeVisible()
   await expect(page.getByText("状態：受付")).toBeVisible()
 
-  // cancel
-  await page.getByRole("button", { name: "注文をキャンセル" }).click()
-  await page.getByRole("alertdialog").getByRole("button", { name: "キャンセルする" }).click()
-  await expect(page.getByText("状態：キャンセル")).toBeVisible()
+  // buyers cannot cancel their own orders
+  await expect(page.getByRole("button", { name: "注文をキャンセル" })).toHaveCount(0)
 
   // now user1 becomes an owner: create a store and give it a customer's order
   await page.goto("/dashboard")

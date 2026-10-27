@@ -7,7 +7,6 @@ import { MemoryImageStorage } from "../../lib/imageStorage"
 import { deleteStore, type StoreDeps } from "../../services/storeService"
 import { addToCart, getCart, setCartQuantity } from "../../services/cartService"
 import {
-  cancelOrderAsBuyer,
   changeOrderStatusAsOwner,
   countReceivedOrders,
   countStoreOrdersByStatus,
@@ -387,32 +386,12 @@ describe("changeOrderStatusAsOwner", () => {
   })
 })
 
-describe("cancelOrderAsBuyer", () => {
-  it("cancels a RECEIVED order and restores stock", async () => {
-    const { product, orderId } = await orderOne(BUYER, { stock: 5, qty: 2 })
-    assert.deepEqual(await cancelOrderAsBuyer(deps, BUYER.sub, orderId), { ok: true })
-    assert.equal(await stockOf(product.id), 5)
-    assert.equal((await getBuyerOrder(deps, BUYER.sub, orderId))?.status, "CANCELED")
-  })
-
-  it("refuses a PAID order", async () => {
-    const { store, product, orderId } = await orderOne()
-    await changeOrderStatusAsOwner(deps, store.ownerSub, orderId, "PAID")
-    assert.deepEqual(await cancelOrderAsBuyer(deps, BUYER.sub, orderId), { ok: false, code: "invalid_transition" })
-    assert.equal(await stockOf(product.id), 3)
-  })
-
-  it("returns not_found for other buyers' orders and malformed ids", async () => {
-    const { orderId } = await orderOne()
-    assert.deepEqual(await cancelOrderAsBuyer(deps, OTHER.sub, orderId), { ok: false, code: "not_found" })
-    assert.deepEqual(await cancelOrderAsBuyer(deps, BUYER.sub, "abc"), { ok: false, code: "not_found" })
-  })
-
-  it("lets only one of concurrent owner and buyer cancels win and restores stock once", async () => {
+describe("canceling", () => {
+  it("lets only one of concurrent owner cancels win and restores stock once", async () => {
     const { store, product, orderId } = await orderOne(BUYER, { stock: 5, qty: 2 })
     const results = await Promise.all([
       changeOrderStatusAsOwner(deps, store.ownerSub, orderId, "CANCELED"),
-      cancelOrderAsBuyer(deps, BUYER.sub, orderId),
+      changeOrderStatusAsOwner(deps, store.ownerSub, orderId, "CANCELED"),
     ])
     assert.equal(results.filter((r) => r.ok).length, 1)
     assert.deepEqual(
@@ -432,7 +411,7 @@ describe("cancelOrderAsBuyer", () => {
     if (!r.ok) throw new Error("order failed")
     await prisma.product.delete({ where: { id: gone.id } })
 
-    assert.deepEqual(await cancelOrderAsBuyer(deps, BUYER.sub, r.orderIds[0]), { ok: true })
+    assert.deepEqual(await changeOrderStatusAsOwner(deps, s.ownerSub, r.orderIds[0], "CANCELED"), { ok: true })
     const order = await getBuyerOrder(deps, BUYER.sub, r.orderIds[0])
     assert.deepEqual(
       order?.items.map((i) => [i.productId, i.productName]),
