@@ -5,12 +5,12 @@ import { EyeOffIcon } from "lucide-react"
 import { cache } from "react"
 import { deps } from "@/app/dashboard/deps"
 import { SiteHeader } from "@/app/components/SiteHeader"
+import { Storefront } from "@/app/components/atelier/Storefront"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getSub } from "@/lib/session"
 import { normalizeSlug } from "@/lib/storeValidation"
 import { listProductsForStorePage } from "@/services/productService"
 import { getStoreForViewer } from "@/services/storeService"
-import { ProductGrid } from "./ProductGrid"
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -42,7 +42,7 @@ export default async function StorePage({ params }: Props) {
     <div style={{ "--store-color": store.themeColor } as React.CSSProperties}>
       <SiteHeader path={`/s/${store.slug}`} />
       {isOwnerPreview && (
-        <Alert role="status" className="rounded-none border-x-0 border-t-0">
+        <Alert role="status" className="rounded-none border-x-0 border-t-0 border-[#dfc9d0] bg-[#f7e8ed] px-5 py-4 sm:px-8">
           <EyeOffIcon />
           <AlertDescription className="text-foreground flex flex-wrap items-center justify-between gap-2">
             <span>非公開です（あなたにだけ表示されています）</span>
@@ -52,29 +52,7 @@ export default async function StorePage({ params }: Props) {
           </AlertDescription>
         </Alert>
       )}
-      {store.headerUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={store.headerUrl} alt="" className="h-40 w-full object-cover sm:h-56" />
-      ) : (
-        <div className="h-24 w-full border-b bg-(--store-color) sm:h-32" />
-      )}
-      <main className="mx-auto max-w-2xl space-y-6 p-4">
-        <header className="flex items-center gap-4">
-          {store.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={store.logoUrl}
-              alt={`${store.name}のロゴ`}
-              className="h-16 w-16 rounded object-cover"
-            />
-          )}
-          <h1 className="border-l-4 border-(--store-color) pl-3 text-2xl font-bold">{store.name}</h1>
-        </header>
-        {store.description && <p className="whitespace-pre-line">{store.description}</p>}
-        <section className="border-t pt-6">
-          <ProductGrid slug={store.slug} products={products} />
-        </section>
-      </main>
+      <Storefront store={store} products={products.map((product) => ({ ...product, href: `/s/${store.slug}/products/${product.id}` }))} />
     </div>
   )
 }

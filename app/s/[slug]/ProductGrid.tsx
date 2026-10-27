@@ -1,37 +1,51 @@
 import Link from "next/link"
+import { ArrowUpRightIcon, ImageIcon, PackageOpenIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { formatPrice } from "@/lib/formatPrice"
-import type { ProductView } from "@/services/productService"
+import type { StorefrontProduct } from "@/app/components/atelier/Storefront"
 
-export function ProductGrid({ slug, products }: { slug: string; products: ProductView[] }) {
-  if (products.length === 0) return <p className="text-muted-foreground">商品はまだありません</p>
+export function ProductGrid({ products }: { products: StorefrontProduct[] }) {
+  if (products.length === 0) {
+    return (
+      <div className="rounded-[1.75rem] border border-dashed border-[#dfd2ce] bg-white/40 px-6 py-16 text-center">
+        <PackageOpenIcon aria-hidden="true" className="mx-auto mb-5 size-8 text-[#ae8a8e]" strokeWidth={1.2} />
+        <p className="font-medium text-[#4b3439]">商品はまだありません</p>
+        <p className="mt-2 text-sm leading-7 text-[#7a6669]">新しい商品が並ぶまで、もう少しお待ちください。</p>
+      </div>
+    )
+  }
   return (
-    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+    <ul className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-6 sm:gap-y-12 lg:grid-cols-3 lg:gap-x-8">
       {products.map((product) => {
         const image = product.images[0]
         return (
-          <li key={product.id}>
+          <li key={product.id} className="min-w-0">
             <Link
-              href={`/s/${slug}/products/${product.id}`}
-              className="focus-visible:ring-ring/50 block rounded-xl outline-none focus-visible:ring-[3px]"
+              href={product.href}
+              className="group block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#a53962] focus-visible:ring-offset-4 focus-visible:ring-offset-[#fffaf6]"
             >
-              <Card className="hover:bg-accent/50 gap-0 overflow-hidden py-0 transition-colors">
-                <div className="bg-muted relative aspect-square overflow-hidden border-b-2 border-(--store-color)">
-                  {image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={image.url} alt="" className="h-full w-full object-cover" />
-                  ) : null}
-                  <div className="absolute top-1.5 left-1.5 flex flex-col items-start gap-1">
-                    {!product.isPublished && <Badge variant="secondary">非公開</Badge>}
-                    {product.stock === 0 && <Badge variant="destructive">売り切れ</Badge>}
+              <div className="relative aspect-square overflow-hidden rounded-2xl bg-[#eee6df] sm:rounded-[1.4rem]">
+                {image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={image.url} alt="" width={1024} height={1024} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.035]" />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-[#79656a]">
+                    <ImageIcon aria-hidden="true" className="size-8" strokeWidth={1.1} />
+                    <span className="text-xs">画像準備中</span>
                   </div>
+                )}
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 sm:top-4 sm:left-4">
+                  {!product.isPublished && <Badge className="border-0 bg-[#fffaf6]/95 px-2.5 py-1 text-[#66565b]">非公開</Badge>}
+                  {product.stock === 0 && <Badge className="border-0 bg-[#fffaf6]/95 px-2.5 py-1 text-[#874c5f]">売り切れ</Badge>}
                 </div>
-                <CardContent className="space-y-1 p-3">
-                  <p className="font-medium">{product.name}</p>
-                  <p className="text-muted-foreground">{formatPrice(product.price)}</p>
-                </CardContent>
-              </Card>
+                <span className="absolute right-4 bottom-4 hidden size-10 items-center justify-center rounded-full bg-[#fffaf6]/95 text-[#a53962] transition-transform duration-300 motion-safe:group-hover:-translate-y-1 sm:flex">
+                  <ArrowUpRightIcon aria-hidden="true" className="size-4" />
+                </span>
+              </div>
+              <div className="px-1 pt-4 sm:pt-5">
+                <h3 className="text-sm leading-6 font-medium break-words text-[#4b3439] sm:text-base">{product.name}</h3>
+                <p className="mt-1.5 text-sm tracking-wide text-[#7a6669] sm:text-base">{formatPrice(product.price)}</p>
+              </div>
             </Link>
           </li>
         )

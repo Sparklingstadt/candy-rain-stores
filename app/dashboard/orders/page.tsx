@@ -1,6 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { ShoppingBagIcon } from "lucide-react"
+import { DashboardShell } from "@/app/components/atelier/DashboardShell"
+import { SignOutButton } from "@/app/components/SignOutButton"
 import { OrderStatusBadge } from "@/app/components/OrderStatusBadge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -39,14 +42,15 @@ export default async function OrdersPage({
   ]
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4">
-      <header className="border-b pb-3">
-        <h1 className="text-xl font-bold">注文</h1>
-      </header>
-
-      <nav aria-label="状態で絞り込む" className="flex flex-wrap gap-2">
+    <DashboardShell
+      title="注文"
+      description="お客さんから届いた注文を、ひとつずつ。お支払いの確認や発送に合わせて状態を更新しましょう。"
+      active="orders"
+      accountAction={<SignOutButton />}
+    >
+      <nav aria-label="状態で絞り込む" className="flex flex-wrap gap-2 rounded-2xl">
         {tabs.map((tab) => (
-          <Button key={tab.href} asChild size="sm" variant={tab.active ? "default" : "outline"}>
+          <Button key={tab.href} asChild size="sm" variant={tab.active ? "default" : "outline"} className="min-h-10 rounded-full px-4">
             <Link href={tab.href} aria-current={tab.active ? "page" : undefined}>
               {tab.label}
             </Link>
@@ -55,11 +59,15 @@ export default async function OrdersPage({
       </nav>
 
       {orders.length === 0 ? (
-        <p className="text-muted-foreground">注文はまだありません</p>
+        <div className="bg-card flex flex-col items-center rounded-3xl border border-dashed px-6 py-16 text-center">
+          <span className="bg-secondary text-primary mb-5 grid size-16 place-items-center rounded-3xl"><ShoppingBagIcon aria-hidden="true" className="size-7" /></span>
+          <p className="font-medium">注文はまだありません</p>
+          <p className="text-muted-foreground mt-2 max-w-sm text-sm leading-7">{status ? "この状態の注文が届くと、ここに表示されます。" : "お客さんから届いた注文を、ここで確認できます。"}</p>
+        </div>
       ) : (
-        <div className="rounded-lg border">
+        <div className="bg-card overflow-hidden rounded-3xl border">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-secondary/25">
               <TableRow>
                 <TableHead>
                   <span className="sr-only">注文番号</span>
@@ -72,11 +80,11 @@ export default async function OrdersPage({
             </TableHeader>
             <TableBody>
               {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>
+                <TableRow key={order.id} className="hover:bg-secondary/20">
+                  <TableCell className="py-5">
                     <Link
                       href={`/dashboard/orders/${order.id}`}
-                      className="font-medium underline underline-offset-4"
+                      className="text-primary font-medium underline decoration-primary/30 underline-offset-4 hover:decoration-primary"
                     >
                       注文番号 {orderNumber(order.id)}
                     </Link>
@@ -94,9 +102,9 @@ export default async function OrdersPage({
         </div>
       )}
 
-      <Button asChild variant="outline">
+      <Button asChild variant="ghost" className="text-muted-foreground rounded-full">
         <Link href="/dashboard">ダッシュボードに戻る</Link>
       </Button>
-    </div>
+    </DashboardShell>
   )
 }
