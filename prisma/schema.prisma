@@ -8,18 +8,20 @@ datasource db {
 }
 
 model Store {
-  id          String   @id @default(uuid()) @db.Uuid
-  ownerSub    String   @unique
-  slug        String   @unique
-  name        String
-  description String?
-  logoPath    String?
-  headerPath  String?
-  themeColor  String   @default("#e85d8f")
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  products    Product[]
+  id                  String    @id @default(uuid()) @db.Uuid
+  ownerSub            String    @unique
+  slug                String    @unique
+  name                String
+  description         String?
+  logoPath            String?
+  headerPath          String?
+  themeColor          String    @default("#e85d8f")
+  isPublished         Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  paymentInstructions String?
+  products            Product[]
+  orders              Order[]
 }
 
 model Product {
@@ -34,6 +36,8 @@ model Product {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   images      ProductImage[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
 
   @@index([storeId, createdAt])
 }
@@ -47,4 +51,58 @@ model ProductImage {
   createdAt DateTime @default(now())
 
   @@index([productId, sortOrder])
+}
+
+enum OrderStatus {
+  RECEIVED
+  PAID
+  SHIPPED
+  CANCELED
+}
+
+model CartItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  buyerSub  String
+  productId String   @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([buyerSub, productId])
+  @@index([buyerSub, createdAt])
+}
+
+model Order {
+  id                  String      @id @default(uuid()) @db.Uuid
+  storeId             String?     @db.Uuid
+  store               Store?      @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  storeName           String
+  paymentInstructions String?
+  buyerSub            String
+  buyerName           String
+  buyerEmail          String
+  postalCode          String
+  prefecture          String
+  address             String
+  phone               String
+  status              OrderStatus @default(RECEIVED)
+  totalAmount         Int
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  items               OrderItem[]
+
+  @@index([storeId, status, createdAt])
+  @@index([buyerSub, createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?  @db.Uuid
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  unitPrice   Int
+  quantity    Int
 }
