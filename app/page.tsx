@@ -1,19 +1,13 @@
-import { auth, candyRainIdProviderId, signIn } from "@/auth"
+import { redirect } from "next/navigation"
+import { candyRainIdProviderId, signIn } from "@/auth"
+import { getSub } from "@/lib/session"
 
 export default async function Page() {
-  const session = await auth()
-
-  if (session) {
-    return (
-      <main>
-        <p>ログインに成功しました！</p>
-      </main>
-    )
-  }
+  if (await getSub()) redirect("/dashboard")
 
   const handleSignIn = async () => {
     "use server"
-    await signIn(candyRainIdProviderId, { redirectTo: "/" })
+    await signIn(candyRainIdProviderId, { redirectTo: "/dashboard" })
   }
 
   return (

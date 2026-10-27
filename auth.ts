@@ -14,4 +14,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     clientSecret: process.env.AUTH_CANDY_RAIN_ID_SECRET,
     authorization: { params: { scope: "openid email profile" } },
   }],
+  callbacks: {
+    jwt({ token, account }) {
+      // Auth.js replaces user.id with a random UUID for OIDC sign-ins;
+      // the Candy Rain ID subject is kept on the account.
+      if (account?.provider === candyRainIdProviderId) token.sub = account.providerAccountId
+      return token
+    },
+    session({ session, token }) {
+      if (token.sub && session.user) session.user.id = token.sub
+      return session
+    },
+  },
 })
