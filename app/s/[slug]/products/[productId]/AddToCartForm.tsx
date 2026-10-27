@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useActionState } from "react"
 import { addToCartAction, signInToBuyAction, type AddToCartState } from "@/app/cart/actions"
+import { addToCartView } from "@/lib/addToCartView"
 import { MAX_QUANTITY } from "@/lib/orderValidation"
 
 type Props = {
@@ -19,7 +20,16 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: 
     {},
   )
 
-  if (!signedIn) {
+  const view = addToCartView({ isOwnStore, stock, signedIn })
+  if (view === "own_store") return <p>自分のストアの商品は購入できません</p>
+  if (view === "sold_out") {
+    return (
+      <button type="button" disabled className="rounded border px-4 py-2 opacity-50">
+        売り切れ
+      </button>
+    )
+  }
+  if (view === "sign_in") {
     return (
       <form action={signInToBuyAction.bind(null, path)}>
         <button type="submit" className="rounded border px-4 py-2">
@@ -28,14 +38,6 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: 
       </form>
     )
   }
-  if (stock <= 0) {
-    return (
-      <button type="button" disabled className="rounded border px-4 py-2 opacity-50">
-        売り切れ
-      </button>
-    )
-  }
-  if (isOwnStore) return <p>自分のストアの商品は購入できません</p>
 
   return (
     <form action={action} className="space-y-2">
