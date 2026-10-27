@@ -19,4 +19,32 @@ model Store {
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id          String         @id @default(uuid()) @db.Uuid
+  storeId     String         @db.Uuid
+  store       Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Int
+  stock       Int
+  isPublished Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  images      ProductImage[]
+
+  @@index([storeId, createdAt])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  path      String
+  sortOrder Int
+  createdAt DateTime @default(now())
+
+  @@index([productId, sortOrder])
 }
