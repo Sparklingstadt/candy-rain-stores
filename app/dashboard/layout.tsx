@@ -32,7 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       style={{ "--store-color": store.themeColor } as React.CSSProperties}
     >
       <aside className="bg-background grid w-full grid-cols-[1fr_auto] content-start items-center gap-x-3 gap-y-4 border-b p-4 lg:flex lg:sticky lg:top-0 lg:h-svh lg:w-auto lg:max-w-[260px] lg:flex-[1_1_240px] lg:flex-col lg:self-start lg:items-stretch lg:gap-6 lg:border-r lg:border-b-0 lg:px-4 lg:py-5">
-        <Link href="/" className="px-2 font-bold lg:text-base">
+        <Link href="/stores" className="px-2 font-bold lg:text-base">
           Candy Rain Stores
         </Link>
         <div className="lg:order-last lg:mt-auto lg:px-2">

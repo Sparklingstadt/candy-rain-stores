@@ -22,6 +22,17 @@ export type UpdateResult =
   | { ok: false; code: "invalid"; errors: FieldErrors }
   | { ok: false; code: "not_found" }
 
+export type StoreCard = {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  themeColor: string
+  logoUrl: string | null
+  headerUrl: string | null
+  publishedProductCount: number
+}
+
 const SLUG_TAKEN = "このストア ID はすでに使われています"
 
 export function toView(storage: ImageStorage, store: Store): StoreView {
@@ -82,6 +93,35 @@ export async function getStoreForViewer(
     return { store: toView(deps.storage, store), isOwnerPreview: true }
   }
   return null
+}
+
+// Published stores, newest first. page is 1-based; one extra row tells whether a next page exists.
+export async function listPublishedStores(
+  deps: StoreDeps,
+  page: number,
+  pageSize: number,
+): Promise<{ stores: StoreCard[]; hasNext: boolean }> {
+  const rows = await deps.db.store.findMany({
+    where: { isPublished: true },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: (page - 1) * pageSize,
+    take: pageSize + 1,
+    include: { _count: { select: { products: { where: { isPublished: true } } } } },
+  })
+  const stores = rows.slice(0, pageSize).map(({ _count, ...store }) => {
+    const view = toView(deps.storage, store)
+    return {
+      id: view.id,
+      slug: view.slug,
+      name: view.name,
+      description: view.description,
+      themeColor: view.themeColor,
+      logoUrl: view.logoUrl,
+      headerUrl: view.headerUrl,
+      publishedProductCount: _count.products,
+    }
+  })
+  return { stores, hasNext: rows.length > pageSize }
 }
 
 export async function createStore(

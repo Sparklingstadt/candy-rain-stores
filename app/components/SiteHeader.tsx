@@ -14,7 +14,7 @@ export async function SiteHeader({ path }: { path: string }) {
   return (
     <header className="bg-background border-b text-sm">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 sm:px-8">
-        <Link href="/" className="font-semibold tracking-tight">
+        <Link href="/stores" className="font-semibold tracking-tight">
           Candy Rain Stores
         </Link>
         <nav className="flex flex-wrap items-center gap-1">
