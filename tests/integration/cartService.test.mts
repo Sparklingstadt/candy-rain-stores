@@ -7,6 +7,7 @@ import { MemoryImageStorage } from "../../lib/imageStorage"
 import type { StoreDeps } from "../../services/storeService"
 import {
   addToCart,
+  cartVersion,
   countCartItems,
   getCart,
   lineProblem,
@@ -119,7 +120,13 @@ describe("addToCart", () => {
 
 describe("getCart", () => {
   it("returns an empty cart", async () => {
-    assert.deepEqual(await getCart(deps, BUYER), { groups: [], total: 0, itemCount: 0, hasProblems: false })
+    assert.deepEqual(await getCart(deps, BUYER), {
+      groups: [],
+      total: 0,
+      itemCount: 0,
+      hasProblems: false,
+      version: cartVersion([]),
+    })
   })
 
   it("groups by store in first-added order with totals, image and problems", async () => {
@@ -178,6 +185,31 @@ describe("getCart", () => {
   })
 })
 
+describe("cartVersion", () => {
+  it("hashes item, quantity and price regardless of order", () => {
+    const x = { itemId: "x", quantity: 1, unitPrice: 100 }
+    const y = { itemId: "y", quantity: 2, unitPrice: 200 }
+    assert.match(cartVersion([x, y]), /^[0-9a-f]{64}$/)
+    assert.equal(cartVersion([x, y]), cartVersion([y, x]))
+    assert.notEqual(cartVersion([x, y]), cartVersion([x]))
+    assert.notEqual(cartVersion([x, y]), cartVersion([x, { ...y, quantity: 3 }]))
+    assert.notEqual(cartVersion([x, y]), cartVersion([x, { ...y, unitPrice: 201 }]))
+  })
+
+  it("changes in getCart with quantity and price but not with stock", async () => {
+    const p = await makeProduct((await makeStore()).id)
+    await addToCart(deps, BUYER, p.id, 1)
+    const v1 = (await getCart(deps, BUYER)).version
+    await prisma.product.update({ where: { id: p.id }, data: { stock: 4 } })
+    assert.equal((await getCart(deps, BUYER)).version, v1)
+    await prisma.product.update({ where: { id: p.id }, data: { price: 301 } })
+    const v2 = (await getCart(deps, BUYER)).version
+    assert.notEqual(v2, v1)
+    await addToCart(deps, BUYER, p.id, 1)
+    assert.notEqual((await getCart(deps, BUYER)).version, v2)
+  })
+})
+
 describe("lineProblem", () => {
   const base = { isPublished: true, stock: 3, store: { isPublished: true, ownerSub: "o" } }
   it("applies precedence own_store > unavailable > insufficient_stock", () => {
@@ -213,6 +245,43 @@ describe("setCartQuantity / removeFromCart", () => {
     assert.equal(await removeFromCart(deps, BUYER, "abc"), false)
     assert.equal(await removeFromCart(deps, BUYER, randomUUID()), false)
     assert.equal(await countCartItems(deps, BUYER), 2)
+  })
+
+  // placeOrder と同じ購入者ごとのロックを取る。ロック中の書き込みは解放まで待つ
+  async function whileCartLocked(write: () => Promise<boolean>) {
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    let locked!: () => void
+    const acquired = new Promise<void>((r) => (locked = r))
+    const tx = prisma.$transaction(async (t) => {
+      await t.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"cart:" + BUYER}))`
+      locked()
+      await held
+    })
+    await acquired
+    let done = false
+    const pending = write().then((r) => ((done = true), r))
+    await new Promise((r) => setTimeout(r, 300))
+    const doneWhileLocked = done
+    release()
+    await tx
+    return { doneWhileLocked, result: await pending }
+  }
+
+  it("waits for the cart lock when changing a quantity", async () => {
+    const item = await seed()
+    const { doneWhileLocked, result } = await whileCartLocked(() => setCartQuantity(deps, BUYER, item.id, 4))
+    assert.equal(doneWhileLocked, false)
+    assert.equal(result, true)
+    assert.equal(await countCartItems(deps, BUYER), 4)
+  })
+
+  it("waits for the cart lock when removing", async () => {
+    const item = await seed()
+    const { doneWhileLocked, result } = await whileCartLocked(() => removeFromCart(deps, BUYER, item.id))
+    assert.equal(doneWhileLocked, false)
+    assert.equal(result, true)
+    assert.equal(await rowCount(), 0)
   })
 
   it("removes own rows", async () => {

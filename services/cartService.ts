@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto"
+import type { Prisma } from "../generated/prisma/client"
 import { MAX_CART_ITEMS, MAX_QUANTITY, parseQuantity } from "../lib/orderValidation"
 import { isUuid } from "./productService"
 import type { StoreDeps } from "./storeService"
@@ -20,10 +22,29 @@ export type CartGroup = {
   lines: CartLine[]
   subtotal: number
 }
-export type CartView = { groups: CartGroup[]; total: number; itemCount: number; hasProblems: boolean }
+// version は注文手続き画面で見せたカートの版。注文確定時に同じかを確かめる
+export type CartView = {
+  groups: CartGroup[]
+  total: number
+  itemCount: number
+  hasProblems: boolean
+  version: string
+}
 export type AddToCartResult =
   | { ok: true }
   | { ok: false; code: "not_found" | "own_store" | "cart_full" | "invalid_quantity" }
+
+// カートの行・数量・単価から作る版。どれかが変われば変わる（在庫や公開状態は lineProblem で見る）
+export function cartVersion(lines: { itemId: string; quantity: number; unitPrice: number }[]): string {
+  const entries = lines.map((l) => `${l.itemId}:${l.quantity}:${l.unitPrice}`).sort()
+  return createHash("sha256").update(entries.join(",")).digest("hex")
+}
+
+// 購入者ごとのカートの書き込みを直列化する（addToCart・setCartQuantity・removeFromCart・placeOrder）。
+// READ COMMITTED なので、ロック取得後の読み取りは先に終わったトランザクションの結果を見る
+export async function lockCart(tx: Prisma.TransactionClient, buyerSub: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"cart:" + buyerSub}))`
+}
 
 // product は store 付き、quantity は希望数。購入できれば null（注文確定でも使う）
 export function lineProblem(
@@ -87,7 +108,8 @@ export async function getCart(deps: StoreDeps, buyerSub: string): Promise<CartVi
     itemCount += item.quantity
     if (problem) hasProblems = true
   }
-  return { groups: [...groups.values()], total, itemCount, hasProblems }
+  const version = cartVersion([...groups.values()].flatMap((g) => g.lines))
+  return { groups: [...groups.values()], total, itemCount, hasProblems, version }
 }
 
 export async function countCartItems(deps: StoreDeps, buyerSub: string): Promise<number> {
@@ -107,7 +129,7 @@ export async function addToCart(
 
   return deps.db.$transaction(async (tx) => {
     // 同じ購入者の追加を直列化（同じ商品の同時追加でも、30 種類の上限でも壊れない）
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"cart:" + buyerSub}))`
+    await lockCart(tx, buyerSub)
 
     const product = await tx.product.findUnique({
       where: { id: productId },
@@ -145,15 +167,22 @@ export async function setCartQuantity(
 ): Promise<boolean> {
   const qty = parseQuantity(quantity)
   if (qty === null || !isUuid(itemId)) return false
-  const { count } = await deps.db.cartItem.updateMany({
-    where: { id: itemId, buyerSub },
-    data: { quantity: qty },
+  return deps.db.$transaction(async (tx) => {
+    // 注文確定がカートを読んでから空にするまでの間に書き込まない
+    await lockCart(tx, buyerSub)
+    const { count } = await tx.cartItem.updateMany({
+      where: { id: itemId, buyerSub },
+      data: { quantity: qty },
+    })
+    return count > 0
   })
-  return count > 0
 }
 
 export async function removeFromCart(deps: StoreDeps, buyerSub: string, itemId: string): Promise<boolean> {
   if (!isUuid(itemId)) return false
-  const { count } = await deps.db.cartItem.deleteMany({ where: { id: itemId, buyerSub } })
-  return count > 0
+  return deps.db.$transaction(async (tx) => {
+    await lockCart(tx, buyerSub)
+    const { count } = await tx.cartItem.deleteMany({ where: { id: itemId, buyerSub } })
+    return count > 0
+  })
 }

@@ -29,13 +29,18 @@ export async function placeOrderAction(_prev: CheckoutState, formData: FormData)
 
   let result: PlaceOrderResult
   try {
-    result = await placeOrder(deps(), buyer, parsed.value)
+    result = await placeOrder(deps(), buyer, parsed.value, text(formData, "cartVersion"))
   } catch (error) {
     console.error("placeOrderAction failed", error)
     return { message: SAVE_FAILED, values }
   }
   revalidatePath("/cart")
   revalidatePath("/orders")
-  if (!result.ok) redirect(result.code === "empty_cart" ? "/cart" : "/cart?error=changed")
+  if (!result.ok) {
+    if (result.code === "empty_cart") redirect("/cart")
+    // v は確定しようとしたときのカートの版。カートを直すまで案内を出し続けるのに使う
+    if (result.code === "changed") redirect(`/cart?error=changed&v=${result.version}`)
+    redirect("/cart?error=changed")
+  }
   redirect("/orders?placed=1")
 }

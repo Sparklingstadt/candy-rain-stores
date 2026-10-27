@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import type { Order, OrderItem } from "../generated/prisma/client"
 import type { ShippingInfo } from "../lib/orderValidation"
 import { canTransition, type OrderStatus } from "../lib/orderStatus"
-import { lineProblem, type CartLineProblem } from "./cartService"
+import { cartVersion, lineProblem, lockCart, type CartLineProblem } from "./cartService"
 import { isUuid } from "./productService"
 import type { StoreDeps } from "./storeService"
 
@@ -13,16 +13,23 @@ export type PlaceOrderResult =
   | { ok: true; orderIds: string[] }
   | { ok: false; code: "empty_cart" }
   | { ok: false; code: "problems"; problems: OrderProblem[] }
+  // 注文手続き画面で見せたカートから行・数量・単価が変わった。version は今のカートの版
+  | { ok: false; code: "changed"; version: string }
 export type ChangeResult = { ok: true } | { ok: false; code: "not_found" | "invalid_transition" | "conflict" }
 
 // OrderItem には並び順の列がないので、1 注文の中では ID を昇順に振って作成順を表す
 const withItems = { items: { orderBy: { id: "asc" } } } as const
 
-export async function placeOrder(deps: StoreDeps, buyer: Buyer, shipping: ShippingInfo): Promise<PlaceOrderResult> {
+// expectedVersion は注文手続き画面で見せたカートの版（getCart の version）
+export async function placeOrder(
+  deps: StoreDeps,
+  buyer: Buyer,
+  shipping: ShippingInfo,
+  expectedVersion: string,
+): Promise<PlaceOrderResult> {
   return deps.db.$transaction(async (tx) => {
-    // cartService.addToCart と同じキーで直列化する（カート追加・二重送信と競合しない）。
-    // READ COMMITTED なので、ロック取得後の読み取りは先に終わったトランザクションの結果を見る
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"cart:" + buyer.sub}))`
+    // カートの書き込み（追加・数量変更・削除）や二重送信と同じキーで直列化する
+    await lockCart(tx, buyer.sub)
 
     const cart = await tx.cartItem.findMany({
       where: { buyerSub: buyer.sub },
@@ -40,14 +47,23 @@ export async function placeOrder(deps: StoreDeps, buyer: Buyer, shipping: Shippi
     })
     const byId = new Map(products.map((p) => [p.id, p]))
 
+    // 画面で見せたあとに単価・数量・行が変わっていたら確定しない。
+    // カートを読んでからロックを取るまでに商品（かストア）が消えた行は、CASCADE でカートからも消える
+    const present = cart.filter((line) => byId.has(line.productId))
+    const version = cartVersion(
+      present.map((line) => ({
+        itemId: line.id,
+        quantity: line.quantity,
+        unitPrice: byId.get(line.productId)!.price,
+      })),
+    )
+    if (present.length < cart.length || version !== expectedVersion) {
+      return { ok: false, code: "changed", version } as const
+    }
+
     const problems: OrderProblem[] = []
     for (const line of cart) {
-      const product = byId.get(line.productId)
-      // カートを読んでからロックを取るまでに商品（かストア）が消えた
-      if (!product) {
-        problems.push({ productId: line.productId, problem: "unavailable", stock: 0 })
-        continue
-      }
+      const product = byId.get(line.productId)!
       const problem = lineProblem(product, line.quantity, buyer.sub)
       if (problem) problems.push({ productId: product.id, problem, stock: product.stock })
     }

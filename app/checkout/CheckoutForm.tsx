@@ -15,7 +15,8 @@ function FieldError({ message }: { message?: string }) {
   )
 }
 
-export function CheckoutForm({ initial }: { initial: ShippingInfo }) {
+// cartVersion はこの画面で見せたカートの版。確定時に変わっていたら注文しない
+export function CheckoutForm({ initial, cartVersion }: { initial: ShippingInfo; cartVersion: string }) {
   const [state, action, pending] = useActionState<CheckoutState, FormData>(placeOrderAction, {})
   const values = state.values ?? initial
   const errors = state.errors ?? {}
@@ -23,6 +24,7 @@ export function CheckoutForm({ initial }: { initial: ShippingInfo }) {
   return (
     <form action={action} className="space-y-4 rounded border p-4">
       <h2 className="text-lg font-bold">お届け先</h2>
+      <input type="hidden" name="cartVersion" value={cartVersion} />
       <label className="block text-sm">
         郵便番号
         <input name="postalCode" defaultValue={values.postalCode} autoComplete="postal-code" className={inputClass} />

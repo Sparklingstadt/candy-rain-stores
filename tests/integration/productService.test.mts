@@ -19,7 +19,7 @@ import {
   setProductPublished,
   updateProduct,
 } from "../../services/productService"
-import { addToCart } from "../../services/cartService"
+import { addToCart, getCart } from "../../services/cartService"
 import { placeOrder, type Buyer } from "../../services/orderService"
 
 const storeFields = { name: "あめ屋", description: "かわいい", themeColor: "#112233" }
@@ -164,7 +164,7 @@ describe("updateProduct and stock changed by orders", () => {
     const loaded = await getOwnProduct(deps, "a", p.id)
     assert.equal(loaded?.stock, 5)
     assert.deepEqual(await addToCart(deps, BUYER.sub, p.id, 2), { ok: true })
-    const r = await placeOrder(deps, BUYER, SHIPPING)
+    const r = await placeOrder(deps, BUYER, SHIPPING, (await getCart(deps, BUYER.sub)).version)
     assert.equal(r.ok, true)
     return loaded!
   }

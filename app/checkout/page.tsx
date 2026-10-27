@@ -39,7 +39,10 @@ export default async function CheckoutPage() {
           </section>
         ))}
         <p className="text-right text-xl font-bold">合計 {formatPrice(cart.total)}</p>
-        <CheckoutForm initial={last ?? { postalCode: "", prefecture: "", address: "", phone: "" }} />
+        <CheckoutForm
+          initial={last ?? { postalCode: "", prefecture: "", address: "", phone: "" }}
+          cartVersion={cart.version}
+        />
       </main>
     </>
   )
