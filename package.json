@@ -8,8 +8,8 @@
     "start": "next start -p 3001",
     "lint": "eslint",
     "typecheck": "prisma generate && next typegen && tsc --noEmit",
-    "test": "tsx --test lib/*.test.mts",
-    "test:integration": "tsx --test tests/integration/*.test.mts",
+    "test": "tsx --test lib/*.test.mts tests/*.test.mts",
+    "test:integration": "tsx --conditions=react-server --test tests/integration/*.test.mts",
     "db:migrate": "prisma migrate deploy",
     "test:e2e": "playwright test"
   },
@@ -24,6 +24,7 @@
     "pg": "^8.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "server-only": "^0.0.1",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {

@@ -45,6 +45,8 @@ npm run test:integration  # DB を使う結合テスト（DATABASE_URL が必要
 npm run test:e2e          # Playwright による E2E テスト
 ```
 
+> 注意: 結合テストと E2E は `Store` テーブルを全削除します。`DATABASE_URL` が localhost / 127.0.0.1 / ::1 以外を指しているとエラーで中止します（本番 DB を守るため）。意図的に実行する場合のみ `ALLOW_DB_RESET=1` を指定してください。
+
 ### E2E テスト
 
 E2E は 3118 番ポートでアプリをビルド・起動し、ストアの作成から削除までを実ブラウザで通します。実行前に次を用意してください。

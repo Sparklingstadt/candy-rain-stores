@@ -1,6 +1,7 @@
 import { after, beforeEach, describe, it } from "node:test"
 import assert from "node:assert/strict"
 import { prisma } from "../../lib/prisma"
+import { assertResettableDatabase } from "../assertResettableDatabase"
 import { MemoryImageStorage } from "../../lib/imageStorage"
 import {
   createStore,
@@ -23,6 +24,7 @@ let storage: MemoryImageStorage
 let deps: StoreDeps
 
 beforeEach(async () => {
+  assertResettableDatabase(process.env.DATABASE_URL)
   await prisma.store.deleteMany()
   storage = new MemoryImageStorage()
   deps = { db: prisma, storage }

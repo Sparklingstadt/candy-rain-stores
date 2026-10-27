@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState, useSyncExternalStore } from "react"
-import { DEFAULT_THEME_COLOR } from "@/lib/storeValidation"
+import { DEFAULT_THEME_COLOR, MAX_IMAGE_BYTES } from "@/lib/storeValidation"
 import {
   createStoreAction,
   updateStoreAction,
@@ -28,6 +28,8 @@ function FieldError({ message }: { message?: string }) {
   )
 }
 
+const TOO_LARGE = "画像は 2MB 以下にしてください"
+
 const inputClass = "mt-1 block w-full rounded border px-2 py-1"
 
 export function StoreForm({ store }: { store?: Existing }) {
@@ -44,6 +46,18 @@ export function StoreForm({ store }: { store?: Existing }) {
   const values = state.values
   const [slug, setSlug] = useState(values?.slug ?? "")
   const errors = state.errors ?? {}
+  const [fileErrors, setFileErrors] = useState<{ logo?: string; header?: string }>({})
+
+  // Oversized files never reach the server (platform body limits), so reject them here.
+  function checkSize(field: "logo" | "header", input: HTMLInputElement) {
+    const file = input.files?.[0]
+    if (file && file.size > MAX_IMAGE_BYTES) {
+      input.value = ""
+      setFileErrors((prev) => ({ ...prev, [field]: TOO_LARGE }))
+    } else {
+      setFileErrors((prev) => ({ ...prev, [field]: undefined }))
+    }
+  }
 
   return (
     <form action={action} className="space-y-4 rounded border p-4">
@@ -110,6 +124,7 @@ export function StoreForm({ store }: { store?: Existing }) {
           <input
             type="file"
             name="logo"
+            onChange={(e) => checkSize("logo", e.currentTarget)}
             accept="image/png,image/jpeg,image/webp"
             className={inputClass}
           />
@@ -124,7 +139,7 @@ export function StoreForm({ store }: { store?: Existing }) {
             </label>
           </div>
         )}
-        <FieldError message={errors.logo} />
+        <FieldError message={fileErrors.logo ?? errors.logo} />
       </div>
 
       <div className="text-sm">
@@ -133,6 +148,7 @@ export function StoreForm({ store }: { store?: Existing }) {
           <input
             type="file"
             name="header"
+            onChange={(e) => checkSize("header", e.currentTarget)}
             accept="image/png,image/jpeg,image/webp"
             className={inputClass}
           />
@@ -151,7 +167,7 @@ export function StoreForm({ store }: { store?: Existing }) {
             </label>
           </div>
         )}
-        <FieldError message={errors.header} />
+        <FieldError message={fileErrors.header ?? errors.header} />
       </div>
 
       {state.message && (

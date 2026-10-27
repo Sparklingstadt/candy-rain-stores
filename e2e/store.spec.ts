@@ -14,11 +14,21 @@ test("ストアを作って公開し、削除する", async ({ page, browser, ba
   await expect(page).toHaveURL(`${baseURL}/dashboard`)
   await expect(page.getByRole("heading", { name: "ストアを作成" })).toBeVisible()
 
+  // oversized logo: rejected in the browser without submitting, field cleared
+  await page.getByLabel("ロゴ画像").setInputFiles({
+    name: "big.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(6 * 1024 * 1024),
+  })
+  await expect(page.locator("p[role=alert]")).toHaveText("画像は 2MB 以下にしてください")
+  await expect(page.getByLabel("ロゴ画像")).toHaveValue("")
+  await expect(page.getByRole("heading", { name: "ストアを作成" })).toBeVisible()
+
   // empty name: error shown, other typed values kept
   await page.getByLabel("ストア ID").fill(SLUG)
   await page.getByLabel("説明文").fill(DESCRIPTION)
   await page.getByRole("button", { name: "作成する" }).click()
-  await expect(page.getByRole("alert")).toBeVisible()
+  await expect(page.getByRole("alert").filter({ hasText: "ストア名は 1〜50 文字で入力してください" })).toBeVisible()
   await expect(page.getByLabel("ストア ID")).toHaveValue(SLUG)
   await expect(page.getByLabel("説明文")).toHaveValue(DESCRIPTION)
   await expect(page.getByRole("heading", { name: "ストアを作成" })).toBeVisible()
