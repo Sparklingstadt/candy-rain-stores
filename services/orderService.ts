@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import type { Order, OrderItem } from "../generated/prisma/client"
 import type { ShippingInfo } from "../lib/orderValidation"
-import { canTransition, type OrderStatus } from "../lib/orderStatus"
+import { canTransition, ORDER_STATUSES, type OrderStatus } from "../lib/orderStatus"
 import { cartVersion, lineProblem, lockCart, type CartLineProblem } from "./cartService"
 import { isUuid } from "./productService"
 import type { StoreDeps } from "./storeService"
@@ -182,6 +182,19 @@ export async function countReceivedOrders(deps: StoreDeps, ownerSub: string): Pr
   const storeId = await ownStoreId(deps, ownerSub)
   if (!storeId) return 0
   return deps.db.order.count({ where: { storeId, status: "RECEIVED" } })
+}
+
+// 状態ごとの件数を 1 回のクエリで数える。ストアがなければ null
+export async function countStoreOrdersByStatus(
+  deps: StoreDeps,
+  ownerSub: string,
+): Promise<Record<OrderStatus, number> | null> {
+  const storeId = await ownStoreId(deps, ownerSub)
+  if (!storeId) return null
+  const groups = await deps.db.order.groupBy({ by: ["status"], where: { storeId }, _count: { _all: true } })
+  const counts = Object.fromEntries(ORDER_STATUSES.map((s) => [s, 0])) as Record<OrderStatus, number>
+  for (const g of groups) counts[g.status] = g._count._all
+  return counts
 }
 
 export async function getStoreOrder(deps: StoreDeps, ownerSub: string, orderId: string): Promise<OrderView | null> {

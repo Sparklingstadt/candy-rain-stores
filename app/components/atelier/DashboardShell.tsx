@@ -12,6 +12,11 @@ export type DashboardShellProps = {
   active: "home" | "products" | "orders"
   headerAction?: ReactNode
   accountAction?: ReactNode
+  embedded?: boolean
+  navigation?: ReactNode
+  showNavigation?: boolean
+  showPageHeader?: boolean
+  brandHref?: string
   navigationLinks?: {
     home?: string
     products?: string
@@ -29,8 +34,28 @@ export function DashboardShell({
   active,
   headerAction,
   accountAction,
+  embedded = false,
+  navigation: customNavigation,
+  showNavigation = true,
+  showPageHeader = true,
+  brandHref,
   navigationLinks,
 }: DashboardShellProps) {
+  const pageHeader = showPageHeader ? (
+    <header className="mb-8 flex flex-wrap items-end justify-between gap-5">
+      <div className="min-w-0">
+        <p className="text-primary mb-3 text-[10px] font-semibold tracking-[0.2em]">YOUR STORE, YOUR PACE.</p>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+        {description && <p className="text-muted-foreground mt-3 max-w-xl text-sm leading-7">{description}</p>}
+      </div>
+      {headerAction}
+    </header>
+  ) : null
+
+  if (embedded) {
+    return <>{pageHeader}<div className="space-y-7">{children}</div></>
+  }
+
   const navigation = [
     { key: "home", label: "お店のホーム", href: navigationLinks?.home ?? "/dashboard", icon: HouseIcon },
     { key: "products", label: "商品", href: navigationLinks?.products ?? "/dashboard/products", icon: PackageIcon },
@@ -42,7 +67,7 @@ export function DashboardShell({
     <div className="bg-background min-h-svh">
       <header className="bg-card/80 border-b">
         <div className="mx-auto flex min-h-20 max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-8">
-          <Link href={navigationLinks?.home ?? "/dashboard"} className="focus-visible:ring-ring inline-flex items-center gap-3 rounded-xl outline-none focus-visible:ring-2">
+          <Link href={brandHref ?? navigationLinks?.home ?? "/dashboard"} className="focus-visible:ring-ring inline-flex items-center gap-3 rounded-xl outline-none focus-visible:ring-2">
             <span className="bg-secondary text-primary grid size-10 place-items-center rounded-2xl">
               <LeafIcon aria-hidden="true" className="size-5" />
             </span>
@@ -55,8 +80,10 @@ export function DashboardShell({
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className={cn("mx-auto", showNavigation ? "max-w-7xl lg:grid lg:grid-cols-[220px_minmax(0,1fr)]" : "max-w-4xl")}>
+        {showNavigation && (
         <aside className="border-b px-5 py-5 sm:px-8 lg:min-h-[calc(100svh-5rem)] lg:border-r lg:border-b-0 lg:px-5 lg:py-9">
+          {customNavigation ?? <>
           <div className="mb-4 min-w-0 lg:mb-7 lg:px-3">
             <p className="text-muted-foreground mb-2 text-[10px] font-medium tracking-[0.18em]">MY LITTLE STORE</p>
             <p className="truncate text-sm font-semibold">{storeName ?? "あなたのお店"}</p>
@@ -83,18 +110,13 @@ export function DashboardShell({
               <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
             </Link>
           )}
+          </>}
           <p className="text-muted-foreground mt-12 hidden px-3 text-xs leading-7 lg:block">小さなお店を、<br />あなたのペースで。</p>
         </aside>
+        )}
 
         <main className="min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-          <header className="mb-8 flex flex-wrap items-end justify-between gap-5">
-            <div className="min-w-0">
-              <p className="text-primary mb-3 text-[10px] font-semibold tracking-[0.2em]">YOUR STORE, YOUR PACE.</p>
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-              {description && <p className="text-muted-foreground mt-3 max-w-xl text-sm leading-7">{description}</p>}
-            </div>
-            {headerAction}
-          </header>
+          {pageHeader}
           <div className="space-y-7">{children}</div>
         </main>
       </div>

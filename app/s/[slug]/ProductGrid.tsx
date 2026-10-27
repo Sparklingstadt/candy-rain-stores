@@ -4,13 +4,13 @@ import { Badge } from "@/components/ui/badge"
 import { formatPrice } from "@/lib/formatPrice"
 import type { StorefrontProduct } from "@/app/components/atelier/Storefront"
 
-export function ProductGrid({ products }: { products: StorefrontProduct[] }) {
+export function ProductGrid({ products, filtered = false }: { products: StorefrontProduct[]; filtered?: boolean }) {
   if (products.length === 0) {
     return (
       <div className="rounded-[1.75rem] border border-dashed border-[#dfd2ce] bg-white/40 px-6 py-16 text-center">
         <PackageOpenIcon aria-hidden="true" className="mx-auto mb-5 size-8 text-[#ae8a8e]" strokeWidth={1.2} />
-        <p className="font-medium text-[#4b3439]">商品はまだありません</p>
-        <p className="mt-2 text-sm leading-7 text-[#7a6669]">新しい商品が並ぶまで、もう少しお待ちください。</p>
+        <p className="font-medium text-[#4b3439]">{filtered ? "該当する商品はありません" : "商品はまだありません"}</p>
+        <p className="mt-2 text-sm leading-7 text-[#7a6669]">{filtered ? "別の条件で商品をご覧ください。" : "新しい商品が並ぶまで、もう少しお待ちください。"}</p>
       </div>
     )
   }

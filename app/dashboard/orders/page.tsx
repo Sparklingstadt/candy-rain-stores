@@ -3,9 +3,9 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { ShoppingBagIcon } from "lucide-react"
 import { DashboardShell } from "@/app/components/atelier/DashboardShell"
-import { SignOutButton } from "@/app/components/SignOutButton"
 import { OrderStatusBadge } from "@/app/components/OrderStatusBadge"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatPrice } from "@/lib/formatPrice"
 import {
@@ -16,7 +16,7 @@ import {
   type OrderStatus,
 } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
-import { listStoreOrders } from "@/services/orderService"
+import { countStoreOrdersByStatus, listStoreOrders } from "@/services/orderService"
 import { deps } from "../deps"
 
 export const metadata: Metadata = { title: "注文管理" }
@@ -29,8 +29,11 @@ export default async function OrdersPage({
   const sub = await requireSub()
   const { status: rawStatus } = await searchParams
   const status = ORDER_STATUSES.find((s) => s === rawStatus) as OrderStatus | undefined
-  const orders = await listStoreOrders(deps(), sub, status)
-  if (orders === null) redirect("/dashboard")
+  const [orders, counts] = await Promise.all([
+    listStoreOrders(deps(), sub, status),
+    countStoreOrdersByStatus(deps(), sub),
+  ])
+  if (orders === null || counts === null) redirect("/dashboard")
 
   const tabs: { label: string; href: string; active: boolean }[] = [
     { label: "すべて", href: "/dashboard/orders", active: !status },
@@ -43,10 +46,10 @@ export default async function OrdersPage({
 
   return (
     <DashboardShell
+      embedded
       title="注文"
       description="お客さんから届いた注文を、ひとつずつ。お支払いの確認や発送に合わせて状態を更新しましょう。"
       active="orders"
-      accountAction={<SignOutButton />}
     >
       <nav aria-label="状態で絞り込む" className="flex flex-wrap gap-2 rounded-2xl">
         {tabs.map((tab) => (
@@ -57,6 +60,15 @@ export default async function OrdersPage({
           </Button>
         ))}
       </nav>
+
+      <section aria-label="状態ごとの件数" className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4">
+        {ORDER_STATUSES.map((s) => (
+          <Card key={s} className="gap-2 rounded-2xl p-5 shadow-none">
+            <span className="text-muted-foreground text-xs">{ORDER_STATUS_LABELS[s]}</span>
+            <span className="text-3xl font-medium tabular-nums">{counts[s]}</span>
+          </Card>
+        ))}
+      </section>
 
       {orders.length === 0 ? (
         <div className="bg-card flex flex-col items-center rounded-3xl border border-dashed px-6 py-16 text-center">

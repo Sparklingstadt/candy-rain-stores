@@ -2,7 +2,6 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { PackageIcon, PlusIcon } from "lucide-react"
 import { DashboardShell } from "@/app/components/atelier/DashboardShell"
-import { SignOutButton } from "@/app/components/SignOutButton"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -23,12 +22,12 @@ export default async function ProductsPage() {
 
   return (
     <DashboardShell
+      embedded
       title="商品"
       description="写真や説明に、あなたのお店らしさを。価格・在庫・公開状態をここで管理できます。"
       storeName={store.name}
       storeHref={`/s/${store.slug}`}
       active="products"
-      accountAction={<SignOutButton />}
       headerAction={full ? (
         <div className="text-right">
           <span aria-disabled="true" className={cn(buttonVariants(), "cursor-not-allowed opacity-50")}>

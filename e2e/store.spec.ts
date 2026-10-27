@@ -33,7 +33,7 @@ test("ストアを作って公開し、削除する", async ({ page, browser, ba
   await page.getByRole("button", { name: "作成する" }).click()
   await expect(page.getByRole("heading", { name: "ストアを編集" })).toBeVisible()
   await expect(page.getByRole("heading", { name: STORE_NAME })).toBeVisible()
-  await expect(page.getByText("非公開", { exact: true })).toBeVisible()
+  await expect(page.getByRole("main").getByText("非公開", { exact: true })).toBeVisible()
 
   // unpublished: 404 for a logged-out visitor
   const visitor = await browser.newContext()
@@ -44,7 +44,7 @@ test("ストアを作って公開し、削除する", async ({ page, browser, ba
 
   // publish
   await page.getByRole("button", { name: "公開する" }).click()
-  await expect(page.getByText("公開中", { exact: true })).toBeVisible()
+  await expect(page.getByRole("main").getByText("公開中", { exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "非公開にする" })).toBeVisible()
 
   // visible logged out

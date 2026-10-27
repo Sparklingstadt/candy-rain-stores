@@ -16,6 +16,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   }],
   callbacks: {
     jwt({ token, account }) {
+      // token.picture comes from the OIDC `picture` claim (Auth.js maps it to user.image).
       // Auth.js replaces user.id with a random UUID for OIDC sign-ins;
       // the Candy Rain ID subject is kept on the account.
       if (account?.provider === candyRainIdProviderId) token.sub = account.providerAccountId
@@ -23,6 +24,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     session({ session, token }) {
       if (token.sub && session.user) session.user.id = token.sub
+      if (session.user) session.user.image = typeof token.picture === "string" && token.picture ? token.picture : null
       return session
     },
   },

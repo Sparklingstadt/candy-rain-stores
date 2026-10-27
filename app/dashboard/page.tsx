@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { ArrowRightIcon, PackageIcon, ShoppingBagIcon, StoreIcon } from "lucide-react"
 import { DashboardShell } from "@/app/components/atelier/DashboardShell"
-import { SignOutButton } from "@/app/components/SignOutButton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,12 +19,12 @@ export default async function DashboardPage() {
 
   return (
     <DashboardShell
+      embedded
       title={store ? "今日のお店" : "お店をはじめましょう"}
       description={store ? "届いた注文を確認して、今日もあなたのペースで。" : "好きなものを届ける、あなただけの小さなお店をつくりましょう。"}
       storeName={store?.name}
       storeHref={store ? `/s/${store.slug}` : undefined}
       active="home"
-      accountAction={<SignOutButton />}
     >
       {store === null ? (
         <section id="store-settings" className="max-w-3xl scroll-mt-8">
@@ -55,7 +54,7 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="flex flex-wrap items-center gap-2">
                 <Button asChild variant="outline" className="rounded-full">
-                  <Link href={`/s/${store.slug}`}>ストアページを見る</Link>
+                  <Link href={`/s/${store.slug}`}>ストアをプレビュー</Link>
                 </Button>
                 <form action={setPublishedAction}>
                   <input type="hidden" name="publish" value={store.isPublished ? "false" : "true"} />
@@ -74,14 +73,14 @@ export default async function DashboardPage() {
               <CardContent className="mt-auto">
                 <p className="text-muted-foreground mb-4 text-xs leading-6">{receivedCount > 0 ? "お客さんから注文が届いています。内容を確認しましょう。" : "いま受付中の注文はありません。お店を整えながら、次の出会いを待ちましょう。"}</p>
                 <Button asChild className="h-auto min-h-10 w-full rounded-full py-2 whitespace-normal">
-                  <Link href="/dashboard/orders">注文を管理（受付 {receivedCount} 件）<ArrowRightIcon aria-hidden="true" className="size-4" /></Link>
+                  <Link href="/dashboard/orders">受付中の注文を確認（{receivedCount} 件）<ArrowRightIcon aria-hidden="true" className="size-4" /></Link>
                 </Button>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Link href="/dashboard/products" aria-label="商品を管理" className="bg-card hover:border-primary/30 focus-visible:ring-ring group flex min-h-24 items-center gap-4 rounded-2xl border p-5 outline-none transition-colors focus-visible:ring-2">
+            <Link href="/dashboard/products" aria-label="商品の写真や在庫を整える" className="bg-card hover:border-primary/30 focus-visible:ring-ring group flex min-h-24 items-center gap-4 rounded-2xl border p-5 outline-none transition-colors focus-visible:ring-2">
               <span className="bg-secondary/50 text-primary grid size-11 shrink-0 place-items-center rounded-xl"><PackageIcon aria-hidden="true" className="size-5" /></span>
               <span className="min-w-0"><span className="block text-sm font-semibold">商品を管理</span><span className="text-muted-foreground mt-1 block text-xs leading-5">商品・写真・在庫を整える</span></span>
               <ArrowRightIcon aria-hidden="true" className="text-muted-foreground group-hover:text-primary ml-auto size-4 shrink-0" />

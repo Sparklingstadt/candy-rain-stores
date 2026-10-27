@@ -10,6 +10,7 @@ import {
   cancelOrderAsBuyer,
   changeOrderStatusAsOwner,
   countReceivedOrders,
+  countStoreOrdersByStatus,
   getBuyerOrder,
   getLastShipping,
   getStoreOrder,
@@ -509,6 +510,38 @@ describe("reads", () => {
     assert.ok(await getStoreOrder(deps, store.ownerSub, ids[0]))
     assert.equal(await getStoreOrder(deps, "no-store", ids[0]), null)
     assert.equal(await getStoreOrder(deps, store.ownerSub, "abc"), null)
+  })
+
+  it("counts the store's orders by status without counting other stores", async () => {
+    const store = await makeStore()
+    const p = await makeProduct(store.id, { stock: 9 })
+    const ids: string[] = []
+    for (let i = 0; i < 4; i++) {
+      await add(BUYER, p.id, 1)
+      const r = await place(BUYER)
+      if (!r.ok) throw new Error("order failed")
+      ids.push(r.orderIds[0])
+    }
+    await orderOne(OTHER) // 別のストアの注文
+    await changeOrderStatusAsOwner(deps, store.ownerSub, ids[1], "PAID")
+    await changeOrderStatusAsOwner(deps, store.ownerSub, ids[2], "PAID")
+    await changeOrderStatusAsOwner(deps, store.ownerSub, ids[2], "SHIPPED")
+    await changeOrderStatusAsOwner(deps, store.ownerSub, ids[3], "CANCELED")
+
+    assert.deepEqual(await countStoreOrdersByStatus(deps, store.ownerSub), {
+      RECEIVED: 1,
+      PAID: 1,
+      SHIPPED: 1,
+      CANCELED: 1,
+    })
+    const empty = await makeStore()
+    assert.deepEqual(await countStoreOrdersByStatus(deps, empty.ownerSub), {
+      RECEIVED: 0,
+      PAID: 0,
+      SHIPPED: 0,
+      CANCELED: 0,
+    })
+    assert.equal(await countStoreOrdersByStatus(deps, "no-store"), null)
   })
 
   it("returns the shipping of the latest order", async () => {

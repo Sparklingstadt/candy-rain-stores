@@ -9,11 +9,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatPrice } from "@/lib/formatPrice"
+import { readableTextColor } from "@/lib/color"
 import { getSub } from "@/lib/session"
 import { normalizeSlug } from "@/lib/storeValidation"
-import { getProductForViewer } from "@/services/productService"
+import { getProductForViewer, listOtherProducts } from "@/services/productService"
 import { AddToCartForm } from "./AddToCartForm"
 import { ProductGallery } from "./ProductGallery"
+import { ProductGrid } from "../../ProductGrid"
 
 type Props = { params: Promise<{ slug: string; productId: string }> }
 
@@ -27,12 +29,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return found ? { title: `${found.product.name} | ${found.store.name}` } : {}
 }
 
+const OTHER_PRODUCTS_LIMIT = 6
+
 export default async function ProductPage({ params }: Props) {
   const found = await load(params)
   if (!found) notFound()
   const { store, product, isOwnerPreview } = found
   const viewerSub = await getSub()
   const path = `/s/${store.slug}/products/${product.id}`
+  const others = await listOtherProducts(deps(), store.id, product.id, OTHER_PRODUCTS_LIMIT)
+  const onAccent = readableTextColor(store.themeColor)
 
   return (
     <div className="min-h-screen bg-[#fffaf6] text-[#4b3439]" style={{ "--store-color": store.themeColor } as React.CSSProperties}>
@@ -64,13 +70,19 @@ export default async function ProductPage({ params }: Props) {
             </div>
             {!isOwnerPreview && (
               <div className="mt-8 border-y border-[#eaded9] py-7 [&_button]:min-h-12 [&_form>div]:flex-wrap [&_form>div]:gap-4 [&_form>div>button]:flex-1 [&_form>button]:w-full">
-                <AddToCartForm productId={product.id} path={path} signedIn={viewerSub !== null} stock={product.stock} isOwnStore={viewerSub !== null && viewerSub === store.ownerSub} />
+                <AddToCartForm productId={product.id} path={path} signedIn={viewerSub !== null} stock={product.stock} isOwnStore={viewerSub !== null && viewerSub === store.ownerSub} onAccent={onAccent} />
               </div>
             )}
             {product.description && <section aria-labelledby="product-description" className="mt-8"><h2 id="product-description" className="text-sm font-medium tracking-[.04em]">商品について</h2><p className="mt-4 text-sm leading-8 whitespace-pre-line break-words text-[#7a6669]">{product.description}</p></section>}
             <div className="mt-9 flex items-start gap-3 rounded-2xl bg-[#f5ede7] px-5 py-5 text-xs text-[#7a6669]"><WalletIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[#a47789]" strokeWidth={1.4} /><div><p className="font-medium text-[#694d58]">お支払いについて</p><p className="mt-1.5 leading-6">お支払いは、このストアが案内する方法で行います。注文時のお支払い方法の案内をご確認ください。</p></div></div>
           </div>
         </div>
+        {others.length > 0 && (
+          <section aria-labelledby="other-products-title" className="mt-16 sm:mt-20">
+            <div className="mb-7"><p className="text-[10px] tracking-[.2em] text-[#79656a]">MORE FROM THIS STORE</p><h2 id="other-products-title" className="mt-2.5 font-serif text-2xl font-medium tracking-[.04em]">このストアのほかの商品</h2></div>
+            <ProductGrid products={others.map((item) => ({ ...item, href: `/s/${store.slug}/products/${item.id}` }))} filtered={false} />
+          </section>
+        )}
         <div className="mt-14 flex flex-col items-center justify-between gap-5 rounded-[1.75rem] border border-[#eaded9] bg-white/40 px-6 py-8 sm:mt-20 sm:flex-row sm:px-9"><p className="text-sm leading-7 break-words text-[#7a6669]">{store.name}の、ほかの商品もご覧ください。</p><Button asChild variant="outline" className="border-[#dfc9d0] bg-transparent px-6 text-[#a53962]"><Link href={`/s/${store.slug}`}>ストアに戻る<ArrowUpRightIcon aria-hidden="true" className="ml-2 size-4" /></Link></Button></div>
       </main>
       <footer className="border-t border-[#eaded9] px-5 py-7 text-center text-[10px] tracking-[.08em] text-[#79656a]">Powered by Candy Rain Stores</footer>

@@ -9,6 +9,7 @@ import {
   deleteStore,
   getOwnStore,
   getStoreForViewer,
+  listPublishedStores,
   setPublished,
   updateStore,
   type StoreDeps,
@@ -247,5 +248,95 @@ describe("deleteStore with orders", () => {
       assert.equal(row.storeName, "あめ屋")
     }
     await prisma.order.deleteMany()
+  })
+})
+
+describe("listPublishedStores", () => {
+  async function seed(n: number, opts: { published?: boolean; ownerPrefix?: string } = {}) {
+    const base = Date.UTC(2026, 0, 1)
+    for (let i = 0; i < n; i++) {
+      await prisma.store.create({
+        data: {
+          ownerSub: `${opts.ownerPrefix ?? "o"}-${i}`,
+          slug: `${opts.ownerPrefix ?? "o"}-${String(i).padStart(2, "0")}`,
+          name: `ストア${i}`,
+          isPublished: opts.published ?? true,
+          createdAt: new Date(base + i * 1000),
+        },
+      })
+    }
+  }
+
+  it("lists only published stores, newest first, with image URLs resolved like StoreView", async () => {
+    const a = await create("a", "shop-a", png())
+    const b = await create("b", "shop-b")
+    await create("c", "shop-c")
+    await setPublished(deps, "a", true)
+    await setPublished(deps, "b", true)
+    const r = await listPublishedStores(deps, 1, 24)
+    assert.deepEqual(r.stores.map((s) => s.slug), ["shop-b", "shop-a"])
+    assert.equal(r.hasNext, false)
+    const card = r.stores[1]
+    assert.equal(card.id, a.id)
+    assert.equal(card.name, "あめ屋")
+    assert.equal(card.description, "かわいい")
+    assert.equal(card.themeColor, "#112233")
+    assert.equal(card.logoUrl, `memory://store-images/${a.logoPath}`)
+    assert.equal(card.headerUrl, null)
+    assert.equal(r.stores[0].id, b.id)
+    assert.equal(r.stores[0].logoUrl, null)
+  })
+
+  it("breaks createdAt ties by id descending", async () => {
+    const at = new Date(Date.UTC(2026, 0, 1))
+    const ids = ["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000003", "00000000-0000-4000-8000-000000000002"]
+    for (const [i, id] of ids.entries()) {
+      await prisma.store.create({ data: { id, ownerSub: `t${i}`, slug: `tie-${i}`, name: "t", isPublished: true, createdAt: at } })
+    }
+    const r = await listPublishedStores(deps, 1, 24)
+    assert.deepEqual(r.stores.map((s) => s.id), [...ids].sort().reverse())
+  })
+
+  it("pages and reports hasNext", async () => {
+    await seed(5)
+    const p1 = await listPublishedStores(deps, 1, 2)
+    assert.deepEqual(p1.stores.map((s) => s.name), ["ストア4", "ストア3"])
+    assert.equal(p1.hasNext, true)
+    const p2 = await listPublishedStores(deps, 2, 2)
+    assert.deepEqual(p2.stores.map((s) => s.name), ["ストア2", "ストア1"])
+    assert.equal(p2.hasNext, true)
+    const p3 = await listPublishedStores(deps, 3, 2)
+    assert.deepEqual(p3.stores.map((s) => s.name), ["ストア0"])
+    assert.equal(p3.hasNext, false)
+    const p4 = await listPublishedStores(deps, 4, 2)
+    assert.deepEqual(p4, { stores: [], hasNext: false })
+  })
+
+  it("hasNext is false when the last page is exactly full", async () => {
+    await seed(4)
+    const p2 = await listPublishedStores(deps, 2, 2)
+    assert.equal(p2.stores.length, 2)
+    assert.equal(p2.hasNext, false)
+  })
+
+  it("returns nothing when no store is published", async () => {
+    await seed(2, { published: false })
+    assert.deepEqual(await listPublishedStores(deps, 1, 24), { stores: [], hasNext: false })
+  })
+
+  it("counts published products of each store only", async () => {
+    const a = await create("a", "shop-a")
+    const b = await create("b", "shop-b")
+    await setPublished(deps, "a", true)
+    await setPublished(deps, "b", true)
+    const product = (storeId: string, name: string, isPublished: boolean) =>
+      prisma.product.create({ data: { storeId, name, price: 100, stock: 1, isPublished } })
+    await product(a.id, "p1", true)
+    await product(a.id, "p2", true)
+    await product(a.id, "p3", false)
+    await product(b.id, "q1", false)
+    const r = await listPublishedStores(deps, 1, 24)
+    const counts = Object.fromEntries(r.stores.map((s) => [s.slug, s.publishedProductCount]))
+    assert.deepEqual(counts, { "shop-a": 2, "shop-b": 0 })
   })
 })

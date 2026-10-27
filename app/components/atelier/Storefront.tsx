@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react"
-import { ArrowUpRightIcon, Flower2Icon, SproutIcon } from "lucide-react"
+import type { CSSProperties, ReactNode } from "react"
+import { ArrowUpRightIcon, Flower2Icon, SproutIcon, WalletIcon } from "lucide-react"
 import { ProductGrid } from "@/app/s/[slug]/ProductGrid"
 
 export type StorefrontStore = {
@@ -8,6 +8,8 @@ export type StorefrontStore = {
   themeColor: string
   logoUrl: string | null
   headerUrl: string | null
+  slug?: string
+  paymentInstructions?: string | null
 }
 
 export type StorefrontProduct = {
@@ -20,12 +22,25 @@ export type StorefrontProduct = {
   href: string
 }
 
-export type StorefrontProps = { store: StorefrontStore; products: StorefrontProduct[] }
+export type StorefrontProps = {
+  store: StorefrontStore
+  products: StorefrontProduct[]
+  visibleProducts?: StorefrontProduct[]
+  filtered?: boolean
+  counts?: { published: number; available: number; soldOut: number }
+  catalogControls?: ReactNode
+}
 
-export function Storefront({ store, products }: StorefrontProps) {
+export function Storefront({ store, products, visibleProducts, filtered = false, counts, catalogControls }: StorefrontProps) {
   const heroProduct = products.find((product) => product.images.length > 0)
   const heroImage = store.headerUrl ?? heroProduct?.images[0]?.url
   const heroImageAlt = store.headerUrl ? `${store.name}のイメージ` : heroProduct?.name ?? ""
+  const published = products.filter((product) => product.isPublished)
+  const productCounts = counts ?? {
+    published: published.length,
+    available: published.filter((product) => product.stock > 0).length,
+    soldOut: published.filter((product) => product.stock === 0).length,
+  }
 
   return (
     <div className="bg-[#fffaf6] text-[#4b3439]" style={{ "--store-color": store.themeColor } as CSSProperties}>
@@ -43,6 +58,7 @@ export function Storefront({ store, products }: StorefrontProps) {
             <div className="min-w-0">
               <h1 className="text-xl leading-snug font-semibold tracking-[.04em] break-words sm:text-2xl">{store.name}</h1>
               <p className="mt-1.5 text-[9px] tracking-[.22em] text-[#79656a] sm:text-[10px]">A LITTLE STORE, FILLED WITH LOVE</p>
+              {store.slug && <p className="mt-2 text-xs leading-6 break-words text-[#7a6669]">/s/{store.slug}・商品 {productCounts.published} 点</p>}
             </div>
           </div>
           <nav aria-label="ストア内メニュー" className="flex items-center gap-6 pl-0.5 text-xs text-[#786168] sm:gap-8 sm:text-sm">
@@ -77,9 +93,14 @@ export function Storefront({ store, products }: StorefrontProps) {
         <section id="products" aria-labelledby="products-title" className="scroll-mt-24 pt-13 sm:pt-16 lg:pt-20">
           <div className="mb-7 flex items-end justify-between gap-4 sm:mb-9">
             <div><p className="text-[10px] tracking-[.2em] text-[#79656a]">OUR COLLECTION</p><h2 id="products-title" className="mt-2.5 font-serif text-2xl font-medium tracking-[.05em] sm:text-[1.75rem]">お店の商品</h2></div>
-            <p className="pb-1 text-[10px] tracking-[.14em] text-[#876b74] sm:text-xs">{products.length} ITEMS</p>
+            <p className="pb-1 text-[10px] tracking-[.14em] text-[#876b74] sm:text-xs">{productCounts.published} ITEMS</p>
           </div>
-          <ProductGrid products={products} />
+          <dl className="mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[#7a6669]">
+            <div className="flex items-center gap-2"><dt>販売中</dt><dd className="font-medium text-[#4b3439] tabular-nums">{productCounts.available}</dd></div>
+            <div className="flex items-center gap-2"><dt>売り切れ</dt><dd className="font-medium text-[#4b3439] tabular-nums">{productCounts.soldOut}</dd></div>
+          </dl>
+          {catalogControls}
+          <ProductGrid products={visibleProducts ?? products} filtered={filtered} />
         </section>
 
         <section id="about" aria-labelledby="about-title" className="mt-16 scroll-mt-24 rounded-[1.75rem] border border-[#eaded9] bg-white/40 px-6 py-10 sm:mt-20 sm:px-10 sm:py-12 lg:mt-24 lg:px-14">
@@ -88,6 +109,12 @@ export function Storefront({ store, products }: StorefrontProps) {
             <div><p className="text-sm leading-8 whitespace-pre-line break-words text-[#765d65]">{store.description || `${store.name}へようこそ。商品一覧から、気になるアイテムをゆっくりご覧ください。`}</p><a href="#products" className="mt-6 inline-flex items-center gap-3 rounded-sm py-2 text-sm text-[#a53962] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#a53962]">商品一覧へ<ArrowUpRightIcon aria-hidden="true" className="size-3.5" /></a></div>
           </div>
         </section>
+        {store.paymentInstructions && (
+          <section aria-labelledby="store-payment-title" className="mt-6 flex items-start gap-4 rounded-[1.75rem] bg-[#f5ede7] px-6 py-8 sm:px-10 lg:px-14">
+            <WalletIcon aria-hidden="true" className="mt-1 size-5 shrink-0 text-[#9b657c]" strokeWidth={1.4} />
+            <div className="min-w-0"><h2 id="store-payment-title" className="font-medium tracking-[.04em]">お支払い方法</h2><p className="mt-3 text-sm leading-8 whitespace-pre-line break-words text-[#765d65]">{store.paymentInstructions}</p></div>
+          </section>
+        )}
       </main>
       <footer className="border-t border-[#eaded9]"><div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-5 py-7 text-xs text-[#79656a] sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12"><p className="font-medium break-words text-[#6d515d]">{store.name}</p><p className="text-[10px] tracking-[.08em]">Powered by <span className="font-medium">Candy Rain Stores</span></p></div></footer>
     </div>
