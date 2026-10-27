@@ -2,13 +2,18 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4" aria-busy="true">
-      <div className="border-b pb-3">
+    <div className="space-y-6" aria-busy="true">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
         <Skeleton className="h-7 w-16" />
+        <div className="flex flex-wrap gap-2">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-8 w-16" />
+          ))}
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-4">
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-8 w-16" />
+          <Skeleton key={i} className="h-[88px] rounded-xl" />
         ))}
       </div>
       <div className="divide-y rounded-lg border">

@@ -12,6 +12,7 @@ import {
   getOwnProduct,
   getProductForViewer,
   isUuid,
+  listOtherProducts,
   listOwnProducts,
   listProductsForStorePage,
   makeProductImageFirst,
@@ -262,6 +263,31 @@ describe("listProductsForStorePage", () => {
     await setProductPublished(deps, "a", p3.id, true)
     assert.deepEqual((await listProductsForStorePage(deps, store.id, false)).map((p) => p.name), ["three", "one"])
     assert.deepEqual((await listProductsForStorePage(deps, store.id, true)).map((p) => p.name), ["three", "two", "one"])
+  })
+})
+
+describe("listOtherProducts", () => {
+  it("lists other published products of the same store, newest first, up to the limit", async () => {
+    const store = await makeStore("a", "shop-a", true)
+    await makeStore("b", "shop-b", true)
+    const names = ["one", "two", "three", "four", "hidden"]
+    const made = []
+    for (const [i, name] of names.entries()) {
+      const p = await makeProduct("a", name)
+      await setCreatedAt(p.id, names.length - i)
+      made.push(p)
+    }
+    for (const p of made.slice(0, 4)) await setProductPublished(deps, "a", p.id, true)
+    const foreign = await makeProduct("b", "foreign")
+    await setProductPublished(deps, "b", foreign.id, true)
+
+    const current = made[1] // "two"
+    const all = await listOtherProducts(deps, store.id, current.id, 6)
+    assert.deepEqual(all.map((p) => p.name), ["four", "three", "one"])
+    assert.deepEqual(all[0].images, [])
+    assert.equal(all[0].price, fields.price)
+    const limited = await listOtherProducts(deps, store.id, current.id, 2)
+    assert.deepEqual(limited.map((p) => p.name), ["four", "three"])
   })
 })
 

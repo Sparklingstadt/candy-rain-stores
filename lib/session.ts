@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { safeReturnTo } from "@/lib/safeReturnTo"
+import { toBuyer, type Buyer } from "@/lib/buyer"
 
-export type Buyer = { sub: string; name: string; email: string }
+export type { Buyer }
 
 // The signed-in user's Candy Rain ID subject, or null when signed out.
 export async function getSub(): Promise<string | null> {
@@ -18,9 +19,7 @@ export async function requireSub(): Promise<string> {
 
 export async function getBuyer(): Promise<Buyer | null> {
   const session = await auth()
-  const user = session?.user
-  if (!user?.id) return null
-  return { sub: user.id, name: user.name ?? "", email: user.email ?? "" }
+  return toBuyer(session?.user)
 }
 
 // Signed out: sign in, then come back to redirectTo (same-site paths only).
