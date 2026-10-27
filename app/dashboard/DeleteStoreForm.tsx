@@ -48,6 +48,12 @@ export function DeleteStoreForm({ slug }: { slug: string }) {
               name="confirmSlug"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter would submit the form directly; route it through the confirmation dialog instead.
+                if (e.key !== "Enter") return
+                e.preventDefault()
+                if (matches && !pending) setOpen(true)
+              }}
               autoComplete="off"
             />
           </div>
