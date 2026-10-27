@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import { prisma } from "../../lib/prisma"
 import { assertResettableDatabase } from "../assertResettableDatabase"
 import { MemoryImageStorage } from "../../lib/imageStorage"
+import { addProductImage, createProduct } from "../../services/productService"
 import {
   createStore,
   deleteStore,
@@ -181,5 +182,23 @@ describe("deleteStore", () => {
     assert.equal(storage.files.size, 0)
     const r = await createStore(deps, "b", { slug: "shop-a", fields, logo: null, header: null })
     assert.equal(r.ok, true)
+  })
+})
+
+describe("deleteStore with products", () => {
+  it("removes products, product images and all files", async () => {
+    await create("a", "shop-a", png())
+    for (const name of ["one", "two"]) {
+      const r = await createProduct(deps, "a", { name, description: "", price: 100, stock: 1 })
+      assert.equal(r.ok, true)
+      if (!r.ok) throw new Error("unreachable")
+      assert.equal((await addProductImage(deps, "a", r.product.id, png(2))).ok, true)
+      assert.equal((await addProductImage(deps, "a", r.product.id, png(3))).ok, true)
+    }
+    assert.equal(storage.files.size, 5)
+    assert.deepEqual(await deleteStore(deps, "a", "shop-a"), { ok: true })
+    assert.equal(await prisma.product.count(), 0)
+    assert.equal(await prisma.productImage.count(), 0)
+    assert.equal(storage.files.size, 0)
   })
 })

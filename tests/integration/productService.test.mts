@@ -6,6 +6,7 @@ import { assertResettableDatabase } from "../assertResettableDatabase"
 import { MemoryImageStorage } from "../../lib/imageStorage"
 import { createStore, setPublished, type StoreDeps } from "../../services/storeService"
 import {
+  addProductImage,
   createProduct,
   deleteProduct,
   getOwnProduct,
@@ -13,6 +14,8 @@ import {
   isUuid,
   listOwnProducts,
   listProductsForStorePage,
+  makeProductImageFirst,
+  removeProductImage,
   setProductPublished,
   updateProduct,
 } from "../../services/productService"
@@ -47,6 +50,14 @@ async function makeProduct(ownerSub: string, name = fields.name) {
   return r.product
 }
 
+// Give products explicit, distinct createdAt values so ordering never depends on clock resolution.
+async function setCreatedAt(productId: string, minutesAgo: number) {
+  await prisma.product.update({
+    where: { id: productId },
+    data: { createdAt: new Date(Date.UTC(2026, 0, 1, 12, 0) - minutesAgo * 60_000) },
+  })
+}
+
 describe("isUuid", () => {
   it("accepts UUIDs case-insensitively and rejects others", () => {
     assert.equal(isUuid(randomUUID()), true)
@@ -62,7 +73,9 @@ describe("createProduct / listOwnProducts", () => {
     const p1 = await makeProduct("a", "one")
     assert.equal(p1.isPublished, false)
     assert.deepEqual(p1.images, [])
-    await makeProduct("a", "two")
+    const p2 = await makeProduct("a", "two")
+    await setCreatedAt(p1.id, 2)
+    await setCreatedAt(p2.id, 1)
     const list = await listOwnProducts(deps, "a")
     assert.deepEqual(list?.map((p) => p.name), ["two", "one"])
   })
@@ -176,8 +189,11 @@ describe("listProductsForStorePage", () => {
   it("filters unpublished products and orders newest first", async () => {
     const store = await makeStore("a", "shop-a", true)
     const p1 = await makeProduct("a", "one")
-    await makeProduct("a", "two")
+    const p2 = await makeProduct("a", "two")
     const p3 = await makeProduct("a", "three")
+    await setCreatedAt(p1.id, 3)
+    await setCreatedAt(p2.id, 2)
+    await setCreatedAt(p3.id, 1)
     await setProductPublished(deps, "a", p1.id, true)
     await setProductPublished(deps, "a", p3.id, true)
     assert.deepEqual((await listProductsForStorePage(deps, store.id, false)).map((p) => p.name), ["three", "one"])
@@ -197,5 +213,142 @@ describe("images", () => {
     })
     const got = await getOwnProduct(deps, "a", p.id)
     assert.deepEqual(got?.images.map((i) => i.url), ["memory://store-images/x/1.png", "memory://store-images/x/2.png"])
+  })
+})
+
+const png = (n = 1) => ({
+  contentType: "image/png" as const,
+  ext: "png" as const,
+  bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, n]),
+})
+
+function memory(): MemoryImageStorage {
+  return deps.storage as MemoryImageStorage
+}
+
+async function addImages(ownerSub: string, productId: string, count: number) {
+  for (let i = 0; i < count; i++) {
+    const r = await addProductImage(deps, ownerSub, productId, png(i))
+    assert.equal(r.ok, true)
+  }
+}
+
+describe("addProductImage", () => {
+  it("appends images with increasing sortOrder under the product path", async () => {
+    const store = await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    await addImages("a", p.id, 3)
+    const got = await getOwnProduct(deps, "a", p.id)
+    assert.deepEqual(got?.images.map((i) => i.sortOrder), [0, 1, 2])
+    const rows = await prisma.productImage.findMany({ where: { productId: p.id } })
+    assert.equal(rows.length, 3)
+    for (const row of rows) {
+      assert.match(row.path, new RegExp(`^${store.id}/products/${p.id}/[0-9a-f-]{36}\\.png$`))
+    }
+    assert.equal(memory().files.size, 3)
+  })
+
+  it("rejects a 6th image and leaves no file behind", async () => {
+    await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    await addImages("a", p.id, 5)
+    assert.deepEqual(await addProductImage(deps, "a", p.id, png(9)), { ok: false, code: "limit_reached" })
+    assert.equal(memory().files.size, 5)
+    assert.equal(await prisma.productImage.count({ where: { productId: p.id } }), 5)
+  })
+
+  it("lets only one of two concurrent adds succeed at 4 images", async () => {
+    await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    await addImages("a", p.id, 4)
+    const results = await Promise.all([
+      addProductImage(deps, "a", p.id, png(7)),
+      addProductImage(deps, "a", p.id, png(8)),
+    ])
+    assert.equal(results.filter((r) => r.ok).length, 1)
+    assert.deepEqual(results.filter((r) => !r.ok), [{ ok: false, code: "limit_reached" }])
+    assert.equal(await prisma.productImage.count({ where: { productId: p.id } }), 5)
+    assert.equal(memory().files.size, 5)
+  })
+
+  it("throws and adds no row when the upload fails", async () => {
+    await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    memory().failNextPut = true
+    await assert.rejects(addProductImage(deps, "a", p.id, png()))
+    assert.equal(await prisma.productImage.count({ where: { productId: p.id } }), 0)
+    assert.equal(memory().files.size, 0)
+  })
+
+  it("returns not_found for foreign, missing or non-UUID products without uploading", async () => {
+    await makeStore("a", "shop-a")
+    await makeStore("b", "shop-b")
+    const p = await makeProduct("a")
+    assert.deepEqual(await addProductImage(deps, "b", p.id, png()), { ok: false, code: "not_found" })
+    assert.deepEqual(await addProductImage(deps, "a", randomUUID(), png()), { ok: false, code: "not_found" })
+    assert.deepEqual(await addProductImage(deps, "a", "abc", png()), { ok: false, code: "not_found" })
+    assert.deepEqual(await addProductImage(deps, "nobody", p.id, png()), { ok: false, code: "not_found" })
+    assert.equal(memory().files.size, 0)
+  })
+})
+
+describe("makeProductImageFirst / removeProductImage", () => {
+  it("moves an image to the front", async () => {
+    await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    await addImages("a", p.id, 3)
+    const before = (await getOwnProduct(deps, "a", p.id))!
+    const third = before.images[2]
+    const after = await makeProductImageFirst(deps, "a", p.id, third.id)
+    assert.equal(after?.images[0].id, third.id)
+    assert.deepEqual(after?.images.slice(1).map((i) => i.id), [before.images[0].id, before.images[1].id])
+  })
+
+  it("removes an image row and its file", async () => {
+    await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    await addImages("a", p.id, 3)
+    const before = (await getOwnProduct(deps, "a", p.id))!
+    const after = await removeProductImage(deps, "a", p.id, before.images[0].id)
+    assert.deepEqual(after?.images.map((i) => i.id), [before.images[1].id, before.images[2].id])
+    assert.equal(memory().files.size, 2)
+    // the new first image can still be made first / further adds keep working
+    await addImages("a", p.id, 1)
+    assert.equal((await getOwnProduct(deps, "a", p.id))?.images.length, 3)
+  })
+
+  it("returns null and changes nothing for foreign, mismatched or invalid ids", async () => {
+    await makeStore("a", "shop-a")
+    await makeStore("b", "shop-b")
+    const p1 = await makeProduct("a", "one")
+    const p2 = await makeProduct("a", "two")
+    await addImages("a", p1.id, 2)
+    await addImages("a", p2.id, 1)
+    const img1 = (await getOwnProduct(deps, "a", p1.id))!.images[1]
+    const img2 = (await getOwnProduct(deps, "a", p2.id))!.images[0]
+    for (const fn of [removeProductImage, makeProductImageFirst]) {
+      assert.equal(await fn(deps, "b", p1.id, img1.id), null)
+      assert.equal(await fn(deps, "a", p1.id, img2.id), null)
+      assert.equal(await fn(deps, "a", p1.id, randomUUID()), null)
+      assert.equal(await fn(deps, "a", p1.id, "abc"), null)
+      assert.equal(await fn(deps, "a", "abc", img1.id), null)
+    }
+    assert.equal(memory().files.size, 3)
+    const got = (await getOwnProduct(deps, "a", p1.id))!
+    assert.deepEqual(got.images.map((i) => i.sortOrder), [0, 1])
+    assert.equal(await prisma.productImage.count(), 3)
+  })
+})
+
+describe("deleteProduct cleanup", () => {
+  it("removes the image files of the deleted product only", async () => {
+    await makeStore("a", "shop-a")
+    const p1 = await makeProduct("a", "one")
+    const p2 = await makeProduct("a", "two")
+    await addImages("a", p1.id, 2)
+    await addImages("a", p2.id, 1)
+    assert.equal(await deleteProduct(deps, "a", p1.id), true)
+    assert.equal(memory().files.size, 1)
+    assert.equal(await prisma.productImage.count({ where: { productId: p1.id } }), 0)
   })
 })
