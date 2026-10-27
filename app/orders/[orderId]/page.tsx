@@ -19,7 +19,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
   const order = await getBuyerOrder(deps(), buyer.sub, orderId)
   if (!order) notFound()
   const store = order.storeId
-    ? await deps().db.store.findUnique({ where: { id: order.storeId }, select: { slug: true } })
+    ? await deps().db.store.findUnique({ where: { id: order.storeId }, select: { slug: true, isPublished: true } })
     : null
 
   return (
@@ -31,7 +31,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
           <div>
             <dt className="inline font-medium">ストア：</dt>
             <dd className="inline">
-              {store ? (
+              {store?.isPublished ? (
                 <Link href={`/s/${store.slug}`} className="underline">
                   {order.storeName}
                 </Link>

@@ -12,11 +12,8 @@ export async function cancelOrderAction(orderId: string): Promise<{ message?: st
   const buyer = await requireBuyer("/orders/" + orderId)
   try {
     const result = await cancelOrderAsBuyer(deps(), buyer.sub, orderId)
-    if (!result.ok) {
-      revalidatePath("/orders")
-      revalidatePath("/orders/" + orderId)
-      return { message: CHANGED }
-    }
+    // Keep the form mounted so the message stays visible; the buyer refreshes.
+    if (!result.ok) return { message: CHANGED }
   } catch (error) {
     console.error("cancelOrderAction failed", error)
     return { message: SAVE_FAILED }
