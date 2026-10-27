@@ -30,7 +30,7 @@ export default async function CheckoutPage() {
                 <h2 className="text-lg font-bold">{group.storeName}</h2>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <ul className="space-y-1">
                 {group.lines.map((line) => (
                   <li key={line.itemId} className="flex justify-between gap-2">
@@ -41,6 +41,12 @@ export default async function CheckoutPage() {
                   </li>
                 ))}
               </ul>
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">お支払い方法</h3>
+                <p className="text-muted-foreground text-sm whitespace-pre-line">
+                  {group.paymentInstructions ?? "お支払い方法はストアからの連絡をお待ちください"}
+                </p>
+              </div>
             </CardContent>
             <CardFooter className="justify-end">
               <p>{group.storeName}の小計 {formatPrice(group.subtotal)}</p>

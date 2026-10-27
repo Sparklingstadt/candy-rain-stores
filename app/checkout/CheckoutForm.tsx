@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -90,6 +91,12 @@ export function CheckoutForm({ initial, cartVersion }: { initial: ShippingInfo; 
               {state.message}
             </p>
           )}
+          <Alert role="note">
+            <AlertTitle>注文の確定後はキャンセルできません</AlertTitle>
+            <AlertDescription>
+              確定した注文は、購入者の方からはキャンセルできません。変更やキャンセルが必要なときは、注文詳細に表示されるストアの連絡先へお問い合わせください。
+            </AlertDescription>
+          </Alert>
           <Button type="submit" disabled={pending}>
             {pending ? "送信中…" : "注文を確定する"}
           </Button>

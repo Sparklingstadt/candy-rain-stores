@@ -23,6 +23,7 @@ export type StoreFormState = {
     description: string
     themeColor: string
     paymentInstructions: string
+    contactEmail: string
   }
   message?: string
   saved?: boolean
@@ -42,6 +43,7 @@ async function parseStoreForm(formData: FormData) {
     description: text(formData, "description"),
     themeColor: text(formData, "themeColor"),
     paymentInstructions: text(formData, "paymentInstructions"),
+    contactEmail: text(formData, "contactEmail"),
   }
   const fields = validateStoreFields(values)
   const logo = await readImageField(formData, "logo")

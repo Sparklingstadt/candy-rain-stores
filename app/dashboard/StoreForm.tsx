@@ -21,6 +21,7 @@ type Existing = {
   description: string | null
   themeColor: string
   paymentInstructions: string | null
+  contactEmail: string | null
   logoUrl: string | null
   headerUrl: string | null
 }
@@ -153,6 +154,22 @@ export function StoreForm({ store }: { store?: Existing }) {
               注文したお客さんに表示されます（1,000 文字まで）
             </span>
             <FieldError message={errors.paymentInstructions} />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="store-contactEmail">連絡先のメールアドレス</Label>
+            <Input
+              id="store-contactEmail"
+              type="email"
+              name="contactEmail"
+              autoComplete="email"
+              defaultValue={values?.contactEmail ?? store?.contactEmail ?? ""}
+              aria-invalid={errors.contactEmail ? true : undefined}
+            />
+            <span className="text-muted-foreground block text-sm">
+              注文詳細に表示されます。購入者は自分で注文をキャンセルできないので、変更やキャンセルの連絡はここに届きます
+            </span>
+            <FieldError message={errors.contactEmail} />
           </div>
 
           <div className="grid gap-2">

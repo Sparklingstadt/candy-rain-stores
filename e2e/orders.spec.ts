@@ -28,14 +28,22 @@ async function cleanup() {
 
 async function seedStore(
   c: Client,
-  opts: { ownerSub: string; slug: string; name: string; paymentInstructions?: string; product: string; price: number },
+  opts: {
+    ownerSub: string
+    slug: string
+    name: string
+    paymentInstructions?: string
+    contactEmail?: string
+    product: string
+    price: number
+  },
 ) {
   const storeId = randomUUID()
   const productId = randomUUID()
   await c.query(
-    `INSERT INTO "Store" ("id","ownerSub","slug","name","isPublished","paymentInstructions","updatedAt")
-     VALUES ($1,$2,$3,$4,true,$5,now())`,
-    [storeId, opts.ownerSub, opts.slug, opts.name, opts.paymentInstructions ?? null],
+    `INSERT INTO "Store" ("id","ownerSub","slug","name","isPublished","paymentInstructions","contactEmail","updatedAt")
+     VALUES ($1,$2,$3,$4,true,$5,$6,now())`,
+    [storeId, opts.ownerSub, opts.slug, opts.name, opts.paymentInstructions ?? null, opts.contactEmail ?? null],
   )
   await c.query(
     `INSERT INTO "Product" ("id","storeId","name","price","stock","isPublished","updatedAt")
@@ -55,6 +63,7 @@ test("2 つのストアで注文し、オーナーとして注文を進める", 
       slug: "e2e-orders-a",
       name: "E2E ショップA",
       paymentInstructions: "銀行振込でお支払いください（E2E-A）",
+      contactEmail: "shop-a@example.com",
       product: "ラムネ",
       price: 300,
     }),
@@ -90,6 +99,8 @@ test("2 つのストアで注文し、オーナーとして注文を進める", 
   // checkout
   await page.getByRole("link", { name: "注文手続きへ" }).click()
   await expect(page.getByRole("heading", { name: "注文手続き" })).toBeVisible()
+  await expect(page.getByText("銀行振込でお支払いください（E2E-A）")).toBeVisible()
+  await expect(page.getByText("注文の確定後はキャンセルできません")).toBeVisible()
   await page.getByLabel("郵便番号").fill("100-0001")
   await page.getByLabel("都道府県").selectOption("東京都")
   await page.getByLabel("住所").fill("千代田区千代田1-1")
@@ -106,8 +117,9 @@ test("2 つのストアで注文し、オーナーとして注文を進める", 
   await expect(page.getByText("銀行振込でお支払いください（E2E-A）")).toBeVisible()
   await expect(page.getByText("状態：受付")).toBeVisible()
 
-  // buyers cannot cancel their own orders
+  // buyers cannot cancel their own orders, but can contact the store
   await expect(page.getByRole("button", { name: "注文をキャンセル" })).toHaveCount(0)
+  await expect(page.getByRole("link", { name: "shop-a@example.com" })).toHaveAttribute("href", /^mailto:shop-a@example\.com\?subject=/)
 
   // now user1 becomes an owner: create a store and give it a customer's order
   await page.goto("/dashboard")

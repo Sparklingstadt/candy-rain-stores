@@ -9,7 +9,9 @@ import type { StoreDeps } from "./storeService"
 export type Buyer = { sub: string; name: string; email: string }
 export type OrderView = Order & { items: OrderItem[] } // items は作成順
 // store はストアが削除されていれば null。非公開のストアにはリンクしない
-export type BuyerOrderView = OrderView & { store: { slug: string; isPublished: boolean } | null }
+export type BuyerOrderView = OrderView & {
+  store: { slug: string; isPublished: boolean; contactEmail: string | null } | null
+}
 export type OrderProblem = { productId: string; problem: CartLineProblem; stock: number }
 export type PlaceOrderResult =
   | { ok: true; orderIds: string[] }
@@ -146,7 +148,7 @@ export async function getBuyerOrder(
   if (!isUuid(orderId)) return null
   return deps.db.order.findFirst({
     where: { id: orderId, buyerSub },
-    include: { ...withItems, store: { select: { slug: true, isPublished: true } } },
+    include: { ...withItems, store: { select: { slug: true, isPublished: true, contactEmail: true } } },
   })
 }
 
