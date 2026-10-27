@@ -65,3 +65,17 @@
 - [ ] **Step 4:** 注文の詳細は 2 列（左：購入者・お届け先・注文内容、右：状態と操作ボタン）
 - [ ] **Step 5:** 詳細・入力画面に専用の `loading.tsx`
 - [ ] **Step 6:** スクリーンショット確認、すべてのテストを通してコミット `feat: ダッシュボードを横幅を広く使うレイアウトにする`
+
+### Task 4: トップバーのプロフィール画像とメニュー（ユーザーの追加依頼）
+
+Candy Rain ID が OIDC の `picture` クレーム（`<ISSUER>/avatars/<sub>?v=<etag>`、画像がない人には出さない）を返すようになる（IDサーバー側は別ブランチ `feat/avatar`）。
+
+**Files:**
+- Modify: `auth.ts`（`picture` をセッションの `user.image` に残す）、`lib/session.ts`（`Buyer` に `image: string | null`）、`app/components/SiteHeader.tsx`、`app/components/UserMenu.tsx`
+- Create: `app/new/page.tsx`（新着商品・準備中）、`app/following/page.tsx`（フォロー・準備中）、`app/components/Avatar.tsx`（画像、なければ灰色の丸）
+
+- [ ] **Step 1:** ログイン中のトップバー右端に丸いプロフィール画像（32px、`picture` がなければ `bg-muted` の灰色の丸）。これがメニューのトリガー（`aria-label="アカウントメニュー"`）。カート件数はメニューの外に残す。利用者名のボタンは画像に置き換え、名前とメールはメニューの先頭（`DropdownMenuLabel`）に表示
+- [ ] **Step 2:** メニュー：「新着商品」（`/new`）「フォロー」（`/following`）「購入履歴」（`/orders`）、区切り線、「ダッシュボード」「ログアウト」（今と同じ `signOut`）
+- [ ] **Step 3:** `/new` と `/following`：トップバー付きで、見出し（「新着商品」「フォロー」）と「準備中です」の短い案内。ログイン不要
+- [ ] **Step 4:** 画像は外部の ID サーバーから来るので `<img>`（`next/image` の設定は不要）。`referrerPolicy="no-referrer"`、読み込みに失敗したら灰色の丸に戻す
+- [ ] **Step 5:** すべてのテストを通し、ライト／ダーク・1440／375 でスクリーンショット確認。コミット `feat: トップバーにプロフィール画像のメニューを追加`
