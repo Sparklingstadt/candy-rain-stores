@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getBuyer } from "@/lib/session"
 import { countCartItems } from "@/services/cartService"
-import { SignOutButton } from "./SignOutButton"
+import { UserMenu } from "./UserMenu"
 
 // path: the page the header is on, so signing in brings the buyer back here.
 export async function SiteHeader({ path }: { path: string }) {
@@ -27,17 +27,19 @@ export async function SiteHeader({ path }: { path: string }) {
             <span className="sr-only">）</span>
           </Link>
         </Button>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/orders">注文履歴</Link>
-        </Button>
         {buyer ? (
-          <SignOutButton />
+          <UserMenu label={buyer.name.trim() || buyer.email} />
         ) : (
-          <form action={signInToBuyAction.bind(null, path)}>
-            <Button type="submit" variant="outline" size="sm">
-              ログイン
+          <>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/orders">注文履歴</Link>
             </Button>
-          </form>
+            <form action={signInToBuyAction.bind(null, path)}>
+              <Button type="submit" variant="outline" size="sm">
+                ログイン
+              </Button>
+            </form>
+          </>
         )}
       </nav>
     </header>

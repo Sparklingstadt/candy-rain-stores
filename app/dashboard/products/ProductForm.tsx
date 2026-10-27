@@ -1,6 +1,7 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -35,6 +36,10 @@ export function ProductForm({ product }: { product?: Existing }) {
     editing ? updateProductAction.bind(null, product.id) : createProductAction,
     {},
   )
+  // Each submission returns a new state object, so this fires once per successful save.
+  useEffect(() => {
+    if (state.saved) toast.success("保存しました")
+  }, [state])
   const values = state.values
   const errors = state.errors ?? {}
 
@@ -105,11 +110,6 @@ export function ProductForm({ product }: { product?: Existing }) {
           {state.message && (
             <p role="alert" className="text-destructive text-sm">
               {state.message}
-            </p>
-          )}
-          {state.saved && (
-            <p role="status" className="text-sm text-green-700 dark:text-green-400">
-              保存しました
             </p>
           )}
 

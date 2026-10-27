@@ -1,6 +1,7 @@
 "use client"
 
-import { useActionState, useState, useSyncExternalStore } from "react"
+import { useActionState, useEffect, useState, useSyncExternalStore } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,6 +49,10 @@ export function StoreForm({ store }: { store?: Existing }) {
     () => window.location.origin,
     () => "",
   )
+  // Each submission returns a new state object, so this fires once per successful save.
+  useEffect(() => {
+    if (state.saved) toast.success("保存しました")
+  }, [state])
   const values = state.values
   const [slug, setSlug] = useState(values?.slug ?? "")
   const errors = state.errors ?? {}
@@ -203,11 +208,6 @@ export function StoreForm({ store }: { store?: Existing }) {
           {state.message && (
             <p role="alert" className="text-destructive text-sm">
               {state.message}
-            </p>
-          )}
-          {state.saved && (
-            <p role="status" className="text-sm text-green-700 dark:text-green-400">
-              保存しました
             </p>
           )}
 
