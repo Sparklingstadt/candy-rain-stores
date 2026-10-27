@@ -21,7 +21,7 @@ test("商品を作って公開し、削除する", async ({ page, browser, baseU
   await page.getByRole("button", { name: "作成する" }).click()
   await expect(page.getByRole("heading", { name: "ストアを編集" })).toBeVisible()
   await page.getByRole("button", { name: "公開する" }).click()
-  await expect(page.getByText("公開中", { exact: true })).toBeVisible()
+  await expect(page.getByRole("main").getByText("公開中", { exact: true })).toBeVisible()
 
   // product: create
   await page.getByRole("link", { name: "商品を管理" }).click()

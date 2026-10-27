@@ -22,7 +22,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ pr
   if (!product) notFound()
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4">
+    <div className="w-full max-w-3xl space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>

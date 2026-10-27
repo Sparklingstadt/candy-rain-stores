@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 
 export default function DashboardError({ reset }: { error: Error; reset: () => void }) {
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
+    <div className="max-w-3xl space-y-4">
       <Alert variant="destructive">
         <CircleAlertIcon />
         <AlertDescription>
