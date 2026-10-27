@@ -7,6 +7,8 @@ import {
   formatOrderDate,
   nextOwnerStatuses,
   orderNumber,
+  PAYMENT_DEADLINE_DAYS,
+  paymentDeadline,
   type OrderStatus,
 } from "./orderStatus"
 
@@ -47,4 +49,10 @@ test("formatOrderDate は日本時間", () => {
   assert.equal(formatOrderDate(new Date("2026-10-27T11:15:00Z")), "2026/10/27 20:15")
   assert.equal(formatOrderDate(new Date("2026-01-02T15:05:00Z")), "2026/01/03 00:05")
   assert.equal(formatOrderDate(new Date("2026-03-04T00:00:00Z")), "2026/03/04 09:00")
+})
+
+test("paymentDeadline は注文から 7 日後", () => {
+  assert.equal(PAYMENT_DEADLINE_DAYS, 7)
+  const createdAt = new Date("2026-10-28T03:04:05.678Z")
+  assert.equal(paymentDeadline(createdAt).toISOString(), "2026-11-04T03:04:05.678Z")
 })

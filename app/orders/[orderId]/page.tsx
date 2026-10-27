@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/formatPrice"
-import { formatOrderDate, orderNumber } from "@/lib/orderStatus"
+import { formatOrderDate, orderNumber, PAYMENT_DEADLINE_DAYS, paymentDeadline } from "@/lib/orderStatus"
 import { requireBuyer } from "@/lib/session"
 import { getBuyerOrder } from "@/services/orderService"
 import { isUuid } from "@/services/productService"
@@ -51,7 +51,18 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
               <OrderStatusBadge status={order.status} />
             </dd>
           </div>
+          {order.status === "RECEIVED" && (
+            <div>
+              <dt className="inline font-medium">お支払い期限：</dt>
+              <dd className="inline">{formatOrderDate(paymentDeadline(order.createdAt))}</dd>
+            </div>
+          )}
         </dl>
+        {order.status === "RECEIVED" && (
+          <p className="text-muted-foreground text-sm">
+            注文から {PAYMENT_DEADLINE_DAYS} 日たってもストアがお支払いを確認できないときは、注文は自動でキャンセルされます。
+          </p>
+        )}
 
         <Card>
           <CardHeader>

@@ -25,6 +25,14 @@ export function nextOwnerStatuses(from: OrderStatus): OrderStatus[] {
   return [...OWNER_TRANSITIONS[from]]
 }
 
+// 受付のまま支払いが確認されない注文は、この日数を過ぎると自動でキャンセルされ在庫が戻る
+// （支払う気のない注文で在庫を押さえられないようにする）。キャンセルは毎日 1 回まとめて行う
+export const PAYMENT_DEADLINE_DAYS = 7
+
+export function paymentDeadline(createdAt: Date): Date {
+  return new Date(createdAt.getTime() + PAYMENT_DEADLINE_DAYS * 24 * 60 * 60 * 1000)
+}
+
 export function orderNumber(orderId: string): string {
   return orderId.slice(0, 8).toUpperCase()
 }

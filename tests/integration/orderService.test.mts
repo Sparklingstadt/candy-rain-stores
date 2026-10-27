@@ -8,6 +8,7 @@ import { deleteStore, type StoreDeps } from "../../services/storeService"
 import { addToCart, getCart, setCartQuantity } from "../../services/cartService"
 import {
   changeOrderStatusAsOwner,
+  expireUnpaidOrders,
   countReceivedOrders,
   countStoreOrdersByStatus,
   getBuyerOrder,
@@ -537,5 +538,59 @@ describe("reads", () => {
     await place(BUYER, latest)
     assert.deepEqual(await getLastShipping(deps, BUYER.sub), latest)
     assert.equal(await getLastShipping(deps, OTHER.sub), null)
+  })
+})
+
+describe("expireUnpaidOrders", () => {
+  const DAY = 24 * 60 * 60 * 1000
+  async function age(orderId: string, days: number) {
+    await prisma.order.update({ where: { id: orderId }, data: { createdAt: new Date(Date.now() - days * DAY) } })
+  }
+  async function statusOf(orderId: string) {
+    return (await prisma.order.findUniqueOrThrow({ where: { id: orderId } })).status
+  }
+
+  it("cancels RECEIVED orders past the deadline and restores their stock", async () => {
+    const { store, product, orderId } = await orderOne(BUYER, { stock: 5, qty: 2 })
+    await age(orderId, 8)
+    assert.equal(await stockOf(product.id), 3)
+
+    assert.deepEqual(await expireUnpaidOrders(deps, new Date()), { canceled: 1, storeSlugs: [store.slug] })
+    assert.equal(await statusOf(orderId), "CANCELED")
+    assert.equal(await stockOf(product.id), 5)
+    // 2 回目は何もしない（在庫を二重に戻さない）
+    assert.deepEqual(await expireUnpaidOrders(deps, new Date()), { canceled: 0, storeSlugs: [] })
+    assert.equal(await stockOf(product.id), 5)
+  })
+
+  it("leaves orders within the deadline and orders that are not RECEIVED", async () => {
+    const fresh = await orderOne(BUYER)
+    await age(fresh.orderId, 6)
+    const paid = await orderOne(OTHER)
+    await changeOrderStatusAsOwner(deps, paid.store.ownerSub, paid.orderId, "PAID")
+    await age(paid.orderId, 30)
+
+    assert.deepEqual(await expireUnpaidOrders(deps, new Date()), { canceled: 0, storeSlugs: [] })
+    assert.equal(await statusOf(fresh.orderId), "RECEIVED")
+    assert.equal(await statusOf(paid.orderId), "PAID")
+  })
+
+  it("does not cancel an order the owner marks PAID at the same time", async () => {
+    const { store, product, orderId } = await orderOne(BUYER, { stock: 5, qty: 2 })
+    await age(orderId, 8)
+    const [owner, expired] = await Promise.all([
+      changeOrderStatusAsOwner(deps, store.ownerSub, orderId, "PAID"),
+      expireUnpaidOrders(deps, new Date()),
+    ])
+    const status = await statusOf(orderId)
+    if (owner.ok) {
+      assert.equal(status, "PAID")
+      assert.equal(expired.canceled, 0)
+      assert.equal(await stockOf(product.id), 3)
+    } else {
+      assert.equal(status, "CANCELED")
+      assert.equal(expired.canceled, 1)
+      assert.equal(await stockOf(product.id), 5)
+    }
   })
 })
