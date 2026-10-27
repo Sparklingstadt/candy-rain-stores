@@ -19,6 +19,8 @@ import {
   setProductPublished,
   updateProduct,
 } from "../../services/productService"
+import { addToCart, getCart } from "../../services/cartService"
+import { placeOrder, type Buyer } from "../../services/orderService"
 
 const storeFields = { name: "あめ屋", description: "かわいい", themeColor: "#112233" }
 const fields = { name: "いちご飴", description: "甘い", price: 300, stock: 5 }
@@ -27,6 +29,8 @@ let deps: StoreDeps
 
 beforeEach(async () => {
   assertResettableDatabase(process.env.DATABASE_URL)
+  await prisma.order.deleteMany()
+  await prisma.cartItem.deleteMany()
   await prisma.store.deleteMany()
   deps = { db: prisma, storage: new MemoryImageStorage() }
 })
@@ -114,7 +118,10 @@ describe("owner scoping", () => {
     await makeStore("b", "shop-b")
     const p = await makeProduct("a")
     assert.equal(await getOwnProduct(deps, "b", p.id), null)
-    assert.equal(await updateProduct(deps, "b", p.id, { ...fields, name: "hack" }), null)
+    assert.deepEqual(await updateProduct(deps, "b", p.id, { ...fields, name: "hack" }, fields.stock), {
+      ok: false,
+      code: "not_found",
+    })
     assert.equal(await setProductPublished(deps, "b", p.id, true), null)
     assert.equal(await deleteProduct(deps, "b", p.id), false)
     const after = await getOwnProduct(deps, "a", p.id)
@@ -125,9 +132,9 @@ describe("owner scoping", () => {
   it("lets the owner update, publish and delete", async () => {
     await makeStore("a", "shop-a")
     const p = await makeProduct("a")
-    const u = await updateProduct(deps, "a", p.id, { ...fields, name: "new", price: 500 })
-    assert.equal(u?.name, "new")
-    assert.equal(u?.price, 500)
+    const u = await updateProduct(deps, "a", p.id, { ...fields, name: "new", price: 500 }, fields.stock)
+    assert.equal(u.ok && u.product.name, "new")
+    assert.equal(u.ok && u.product.price, 500)
     const pub = await setProductPublished(deps, "a", p.id, true)
     assert.equal(pub?.isPublished, true)
     assert.equal(await deleteProduct(deps, "a", p.id), true)
@@ -138,10 +145,67 @@ describe("owner scoping", () => {
   it("handles non-UUID ids without throwing", async () => {
     await makeStore("a", "shop-a")
     assert.equal(await getOwnProduct(deps, "a", "abc"), null)
-    assert.equal(await updateProduct(deps, "a", "abc", fields), null)
+    assert.deepEqual(await updateProduct(deps, "a", "abc", fields, fields.stock), { ok: false, code: "not_found" })
     assert.equal(await setProductPublished(deps, "a", "abc", true), null)
     assert.equal(await deleteProduct(deps, "a", "abc"), false)
     assert.equal(await getProductForViewer(deps, "shop-a", "abc", "a"), null)
+  })
+})
+
+describe("updateProduct and stock changed by orders", () => {
+  const BUYER: Buyer = { sub: "buyer-1", name: "あめ子", email: "ameko@example.com" }
+  const SHIPPING = { postalCode: "123-4567", prefecture: "東京都", address: "千代田区1-1", phone: "03-1234-5678" }
+
+  // オーナーが編集画面を開いた（在庫 5）あとで、お客さんが 2 個注文する
+  async function loadThenOrder() {
+    await makeStore("a", "shop-a", true)
+    const p = await makeProduct("a")
+    await setProductPublished(deps, "a", p.id, true)
+    const loaded = await getOwnProduct(deps, "a", p.id)
+    assert.equal(loaded?.stock, 5)
+    assert.deepEqual(await addToCart(deps, BUYER.sub, p.id, 2), { ok: true })
+    const r = await placeOrder(deps, BUYER, SHIPPING, (await getCart(deps, BUYER.sub)).version)
+    assert.equal(r.ok, true)
+    return loaded!
+  }
+
+  async function stockOf(id: string) {
+    return (await prisma.product.findUniqueOrThrow({ where: { id } })).stock
+  }
+
+  it("keeps the stock left by an order when the owner saves with the loaded stock", async () => {
+    const loaded = await loadThenOrder()
+    const u = await updateProduct(deps, "a", loaded.id, { ...fields, name: "new", stock: loaded.stock }, loaded.stock)
+    assert.equal(u.ok, true)
+    if (!u.ok) throw new Error("unreachable")
+    assert.equal(u.product.name, "new")
+    assert.equal(u.product.stock, 3)
+    assert.equal(await stockOf(loaded.id), 3)
+  })
+
+  it("returns stock_changed and changes nothing when a new stock is based on a stale value", async () => {
+    const loaded = await loadThenOrder()
+    const u = await updateProduct(deps, "a", loaded.id, { ...fields, name: "new", stock: 8 }, loaded.stock)
+    assert.deepEqual(u, { ok: false, code: "stock_changed" })
+    const after = await getOwnProduct(deps, "a", loaded.id)
+    assert.equal(after?.name, fields.name)
+    assert.equal(after?.stock, 3)
+  })
+
+  it("applies a new stock when the base still matches", async () => {
+    await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    const u = await updateProduct(deps, "a", p.id, { ...fields, stock: 8 }, 5)
+    assert.equal(u.ok && u.product.stock, 8)
+  })
+
+  it("keeps an unchanged stock above the form limit", async () => {
+    await makeStore("a", "shop-a")
+    const p = await makeProduct("a")
+    await prisma.product.update({ where: { id: p.id }, data: { stock: 100005 } })
+    const u = await updateProduct(deps, "a", p.id, { ...fields, name: "new", stock: 100005 }, 100005)
+    assert.equal(u.ok && u.product.stock, 100005)
+    assert.equal(u.ok && u.product.name, "new")
   })
 })
 

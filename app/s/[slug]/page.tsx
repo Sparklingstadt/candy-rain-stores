@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { cache } from "react"
 import { deps } from "@/app/dashboard/deps"
+import { SiteHeader } from "@/app/components/SiteHeader"
 import { getSub } from "@/lib/session"
 import { normalizeSlug } from "@/lib/storeValidation"
 import { listProductsForStorePage } from "@/services/productService"
@@ -37,6 +38,7 @@ export default async function StorePage({ params }: Props) {
 
   return (
     <div style={{ "--store-color": store.themeColor } as React.CSSProperties}>
+      <SiteHeader path={`/s/${store.slug}`} />
       {isOwnerPreview && (
         <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-800 px-4 py-2 text-sm text-white">
           <span>非公開です（あなたにだけ表示されています）</span>

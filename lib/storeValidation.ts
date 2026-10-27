@@ -1,9 +1,16 @@
+import { validatePaymentInstructions } from "./orderValidation"
+
 export const DEFAULT_THEME_COLOR = "#e85d8f"
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
-export type StoreField = "slug" | "name" | "description" | "themeColor" | "logo" | "header"
+export type StoreField = "slug" | "name" | "description" | "themeColor" | "paymentInstructions" | "logo" | "header"
 export type FieldErrors = Partial<Record<StoreField, string>>
-export type StoreFields = { name: string; description: string | null; themeColor: string }
+export type StoreFields = {
+  name: string
+  description: string | null
+  themeColor: string
+  paymentInstructions?: string | null // 省略すると変更しない
+}
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/
@@ -32,6 +39,7 @@ export function validateStoreFields(raw: {
   name: string
   description: string
   themeColor: string
+  paymentInstructions?: string
 }): { ok: true; value: StoreFields } | { ok: false; errors: FieldErrors } {
   const errors: FieldErrors = {}
 
@@ -50,10 +58,18 @@ export function validateStoreFields(raw: {
     errors.themeColor = "テーマカラーは #rrggbb の形式で入力してください"
   }
 
-  if (Object.keys(errors).length > 0) return { ok: false, errors }
+  const payment = validatePaymentInstructions(raw.paymentInstructions ?? "")
+  if (!payment.ok) errors.paymentInstructions = payment.error
+
+  if (Object.keys(errors).length > 0 || !payment.ok) return { ok: false, errors }
   return {
     ok: true,
-    value: { name, description: description === "" ? null : description, themeColor },
+    value: {
+      name,
+      description: description === "" ? null : description,
+      themeColor,
+      paymentInstructions: payment.value,
+    },
   }
 }
 

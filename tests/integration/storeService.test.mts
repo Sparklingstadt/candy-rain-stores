@@ -26,6 +26,7 @@ let deps: StoreDeps
 
 beforeEach(async () => {
   assertResettableDatabase(process.env.DATABASE_URL)
+  await prisma.order.deleteMany()
   await prisma.store.deleteMany()
   storage = new MemoryImageStorage()
   deps = { db: prisma, storage }
@@ -200,5 +201,51 @@ describe("deleteStore with products", () => {
     assert.equal(await prisma.product.count(), 0)
     assert.equal(await prisma.productImage.count(), 0)
     assert.equal(storage.files.size, 0)
+  })
+})
+
+describe("deleteStore with orders", () => {
+  async function makeOrder(storeId: string, status: "RECEIVED" | "PAID" | "SHIPPED" | "CANCELED") {
+    return prisma.order.create({
+      data: {
+        storeId,
+        storeName: "あめ屋",
+        buyerSub: "buyer",
+        buyerName: "あめ子",
+        buyerEmail: "ameko@example.com",
+        postalCode: "123-4567",
+        prefecture: "東京都",
+        address: "千代田区1-1",
+        phone: "03-1234-5678",
+        status,
+        totalAmount: 300,
+      },
+    })
+  }
+
+  for (const status of ["RECEIVED", "PAID"] as const) {
+    it(`refuses while a ${status} order is open and keeps the store`, async () => {
+      const store = await create("a", "shop-a", png())
+      await makeOrder(store.id, "SHIPPED")
+      await makeOrder(store.id, status)
+      assert.deepEqual(await deleteStore(deps, "a", "other"), { ok: false, code: "confirm_mismatch" })
+      assert.deepEqual(await deleteStore(deps, "a", "shop-a"), { ok: false, code: "has_open_orders" })
+      assert.equal(await prisma.store.count(), 1)
+      assert.equal(storage.files.size, 1)
+    })
+  }
+
+  it("deletes a store whose orders are all closed and keeps the orders with storeId null", async () => {
+    const store = await create("a", "shop-a")
+    const shipped = await makeOrder(store.id, "SHIPPED")
+    const canceled = await makeOrder(store.id, "CANCELED")
+    assert.deepEqual(await deleteStore(deps, "a", "shop-a"), { ok: true })
+    assert.equal(await prisma.store.count(), 0)
+    for (const o of [shipped, canceled]) {
+      const row = await prisma.order.findUniqueOrThrow({ where: { id: o.id } })
+      assert.equal(row.storeId, null)
+      assert.equal(row.storeName, "あめ屋")
+    }
+    await prisma.order.deleteMany()
   })
 })

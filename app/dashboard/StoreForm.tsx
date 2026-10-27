@@ -13,6 +13,7 @@ type Existing = {
   name: string
   description: string | null
   themeColor: string
+  paymentInstructions: string | null
   logoUrl: string | null
   headerUrl: string | null
 }
@@ -116,6 +117,18 @@ export function StoreForm({ store }: { store?: Existing }) {
           className="mt-1 block h-10 w-20"
         />
         <FieldError message={errors.themeColor} />
+      </label>
+
+      <label className="block text-sm">
+        お支払い方法の案内
+        <textarea
+          name="paymentInstructions"
+          rows={4}
+          defaultValue={values?.paymentInstructions ?? store?.paymentInstructions ?? ""}
+          className={inputClass}
+        />
+        <span className="mt-1 block text-gray-600">注文したお客さんに表示されます（1,000 文字まで）</span>
+        <FieldError message={errors.paymentInstructions} />
       </label>
 
       <div className="text-sm">

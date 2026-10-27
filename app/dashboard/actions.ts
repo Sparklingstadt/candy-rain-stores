@@ -17,7 +17,13 @@ import { readImageField } from "./formImage"
 
 export type StoreFormState = {
   errors?: FieldErrors
-  values?: { slug?: string; name: string; description: string; themeColor: string }
+  values?: {
+    slug?: string
+    name: string
+    description: string
+    themeColor: string
+    paymentInstructions: string
+  }
   message?: string
   saved?: boolean
 }
@@ -35,6 +41,7 @@ async function parseStoreForm(formData: FormData) {
     name: text(formData, "name"),
     description: text(formData, "description"),
     themeColor: text(formData, "themeColor"),
+    paymentInstructions: text(formData, "paymentInstructions"),
   }
   const fields = validateStoreFields(values)
   const logo = await readImageField(formData, "logo")
@@ -136,6 +143,9 @@ export async function deleteStoreAction(
   const result = await deleteStore(deps(), sub, text(formData, "confirmSlug"))
   if (!result.ok && result.code === "confirm_mismatch") {
     return { error: "ストア ID が一致しません" }
+  }
+  if (!result.ok && result.code === "has_open_orders") {
+    return { error: "対応中の注文があるため削除できません" }
   }
   revalidatePath("/dashboard")
   if (store) revalidatePath("/s/" + store.slug)

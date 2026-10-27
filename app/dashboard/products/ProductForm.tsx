@@ -38,6 +38,8 @@ export function ProductForm({ product }: { product?: Existing }) {
   return (
     <form action={action} className="space-y-4 rounded border p-4">
       <h2 className="text-lg font-bold">{editing ? "商品を編集" : "商品を追加"}</h2>
+      {/* 開いたときの在庫数。注文で在庫が変わっていたら上書きしない */}
+      {editing && <input type="hidden" name="stockBase" value={String(product.stock)} />}
 
       <label className="block text-sm">
         商品名

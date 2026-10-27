@@ -69,7 +69,9 @@ test("商品を作って公開し、削除する", async ({ page, browser, baseU
   await page.getByRole("button", { name: "保存する" }).click()
   await expect(page.getByText("保存しました")).toBeVisible()
   await visitorPage.goto(detailUrl)
-  await expect(visitorPage.getByText("売り切れ")).toBeVisible()
+  // signed-out visitors see sold out, not a sign-in prompt
+  await expect(visitorPage.getByRole("button", { name: "売り切れ" })).toBeDisabled()
+  await expect(visitorPage.getByRole("button", { name: "ログインしてカートに入れる" })).toHaveCount(0)
 
   // delete the product -> detail page is 404
   await page.getByRole("button", { name: "商品を削除" }).click()
