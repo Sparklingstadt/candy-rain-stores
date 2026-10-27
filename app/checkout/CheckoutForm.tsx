@@ -1,15 +1,18 @@
 "use client"
 
 import { useActionState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { PREFECTURES, type ShippingInfo } from "@/lib/orderValidation"
 import { placeOrderAction, type CheckoutState } from "./actions"
-
-const inputClass = "mt-1 block w-full rounded border px-2 py-1"
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null
   return (
-    <p role="alert" className="mt-1 text-sm text-red-600">
+    <p role="alert" className="text-destructive text-sm">
       {message}
     </p>
   )
@@ -22,44 +25,76 @@ export function CheckoutForm({ initial, cartVersion }: { initial: ShippingInfo; 
   const errors = state.errors ?? {}
 
   return (
-    <form action={action} className="space-y-4 rounded border p-4">
-      <h2 className="text-lg font-bold">お届け先</h2>
-      <input type="hidden" name="cartVersion" value={cartVersion} />
-      <label className="block text-sm">
-        郵便番号
-        <input name="postalCode" defaultValue={values.postalCode} autoComplete="postal-code" className={inputClass} />
-        <FieldError message={errors.postalCode} />
-      </label>
-      <label className="block text-sm">
-        都道府県
-        <select name="prefecture" defaultValue={values.prefecture} className={inputClass}>
-          <option value="">選んでください</option>
-          {PREFECTURES.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <FieldError message={errors.prefecture} />
-      </label>
-      <label className="block text-sm">
-        住所
-        <input name="address" defaultValue={values.address} autoComplete="street-address" className={inputClass} />
-        <FieldError message={errors.address} />
-      </label>
-      <label className="block text-sm">
-        電話番号
-        <input name="phone" type="tel" defaultValue={values.phone} autoComplete="tel" className={inputClass} />
-        <FieldError message={errors.phone} />
-      </label>
-      {state.message && (
-        <p role="alert" className="text-sm text-red-600">
-          {state.message}
-        </p>
-      )}
-      <button type="submit" disabled={pending} className="rounded border px-4 py-2 disabled:opacity-40">
-        {pending ? "送信中…" : "注文を確定する"}
-      </button>
-    </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h2 className="text-lg font-bold">お届け先</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={action} className="space-y-4">
+          <input type="hidden" name="cartVersion" value={cartVersion} />
+          <div className="grid gap-2">
+            <Label htmlFor="checkout-postalCode">郵便番号</Label>
+            <Input
+              id="checkout-postalCode"
+              name="postalCode"
+              defaultValue={values.postalCode}
+              autoComplete="postal-code"
+              aria-invalid={errors.postalCode ? true : undefined}
+            />
+            <FieldError message={errors.postalCode} />
+          </div>
+          <div className="grid gap-2 [&_[data-slot=native-select-wrapper]]:w-full">
+            <Label htmlFor="checkout-prefecture">都道府県</Label>
+            <NativeSelect
+              id="checkout-prefecture"
+              name="prefecture"
+              defaultValue={values.prefecture}
+              aria-invalid={errors.prefecture ? true : undefined}
+            >
+              <NativeSelectOption value="">選んでください</NativeSelectOption>
+              {PREFECTURES.map((p) => (
+                <NativeSelectOption key={p} value={p}>
+                  {p}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+            <FieldError message={errors.prefecture} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="checkout-address">住所</Label>
+            <Input
+              id="checkout-address"
+              name="address"
+              defaultValue={values.address}
+              autoComplete="street-address"
+              aria-invalid={errors.address ? true : undefined}
+            />
+            <FieldError message={errors.address} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="checkout-phone">電話番号</Label>
+            <Input
+              id="checkout-phone"
+              name="phone"
+              type="tel"
+              defaultValue={values.phone}
+              autoComplete="tel"
+              aria-invalid={errors.phone ? true : undefined}
+            />
+            <FieldError message={errors.phone} />
+          </div>
+          {state.message && (
+            <p role="alert" className="text-destructive text-sm">
+              {state.message}
+            </p>
+          )}
+          <Button type="submit" disabled={pending}>
+            {pending ? "送信中…" : "注文を確定する"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

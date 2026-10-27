@@ -1,12 +1,21 @@
 "use client"
 
+import { CircleAlertIcon } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+
 export default function RootError({ reset }: { error: Error; reset: () => void }) {
   return (
-    <div role="alert" className="space-y-4 p-4">
-      <p>エラーが発生しました。時間をおいてもう一度お試しください。</p>
-      <button type="button" onClick={reset} className="rounded border px-4 py-2">
+    <div className="mx-auto max-w-2xl space-y-4 p-4">
+      <Alert variant="destructive">
+        <CircleAlertIcon />
+        <AlertDescription>
+          <p>エラーが発生しました。時間をおいてもう一度お試しください。</p>
+        </AlertDescription>
+      </Alert>
+      <Button type="button" variant="outline" onClick={reset}>
         もう一度試す
-      </button>
+      </Button>
     </div>
   )
 }

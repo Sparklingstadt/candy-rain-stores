@@ -1,7 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { deps } from "@/app/dashboard/deps"
+import { CircleAlertIcon } from "lucide-react"
 import { SiteHeader } from "@/app/components/SiteHeader"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 import { formatPrice } from "@/lib/formatPrice"
 import { requireBuyer } from "@/lib/session"
 import { showChangedNotice } from "@/lib/cartNotice"
@@ -38,66 +43,77 @@ export default async function CartPage({
       <main className="mx-auto max-w-2xl space-y-6 p-4">
         <h1 className="text-2xl font-bold">カート</h1>
         {showChangedNotice(params, cart) && (
-          <p role="alert" className="text-red-700">
-            在庫や公開状態が変わったため、注文を確定できませんでした
-          </p>
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertDescription className="text-destructive">
+              在庫や公開状態が変わったため、注文を確定できませんでした
+            </AlertDescription>
+          </Alert>
         )}
         {cart.groups.length === 0 ? (
           <p>カートは空です</p>
         ) : (
           <>
             {cart.groups.map((group) => (
-              <section key={group.storeId} className="space-y-3">
-                <h2 className="text-lg font-bold">
-                  {group.storePublished ? (
-                    <Link href={`/s/${group.storeSlug}`} className="underline">
-                      {group.storeName}
-                    </Link>
-                  ) : (
-                    group.storeName
-                  )}
-                </h2>
-                <ul className="space-y-3">
-                  {group.lines.map((line) => {
-                    const problem = problemText(line)
-                    return (
-                      <li key={line.itemId} className="flex gap-3 border-b pb-3">
-                        {line.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={line.imageUrl} alt="" className="h-16 w-16 rounded object-cover" />
-                        ) : (
-                          <div className="h-16 w-16 rounded bg-gray-200" />
-                        )}
-                        <div className="flex-1 space-y-1">
-                          {group.storePublished && line.productPublished ? (
-                            <Link
-                              href={`/s/${group.storeSlug}/products/${line.productId}`}
-                              className="font-bold underline"
-                            >
-                              {line.productName}
-                            </Link>
+              <Card key={group.storeId}>
+                <CardHeader>
+                  <CardTitle>
+                    <h2 className="text-lg font-bold">
+                      {group.storePublished ? (
+                        <Link href={`/s/${group.storeSlug}`} className="underline underline-offset-4">
+                          {group.storeName}
+                        </Link>
+                      ) : (
+                        group.storeName
+                      )}
+                    </h2>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-y">
+                    {group.lines.map((line) => {
+                      const problem = problemText(line)
+                      return (
+                        <li key={line.itemId} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                          {line.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={line.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" />
                           ) : (
-                            <span className="font-bold">{line.productName}</span>
+                            <div className="bg-muted h-16 w-16 shrink-0 rounded-md" />
                           )}
-                          <p>{formatPrice(line.unitPrice)}</p>
-                          {problem && (
-                            <p role="alert" className="text-red-700">
-                              {problem}
-                            </p>
-                          )}
-                          <CartLineControls
-                            itemId={line.itemId}
-                            quantity={line.quantity}
-                            name={line.productName}
-                          />
-                          <p>小計 {formatPrice(line.unitPrice * line.quantity)}</p>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-                <p className="text-right">{group.storeName}の小計 {formatPrice(group.subtotal)}</p>
-              </section>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            {group.storePublished && line.productPublished ? (
+                              <Link
+                                href={`/s/${group.storeSlug}/products/${line.productId}`}
+                                className="font-bold underline underline-offset-4"
+                              >
+                                {line.productName}
+                              </Link>
+                            ) : (
+                              <span className="font-bold">{line.productName}</span>
+                            )}
+                            <p>{formatPrice(line.unitPrice)}</p>
+                            {problem && (
+                              <p role="alert" className="text-destructive text-sm">
+                                {problem}
+                              </p>
+                            )}
+                            <CartLineControls
+                              itemId={line.itemId}
+                              quantity={line.quantity}
+                              name={line.productName}
+                            />
+                            <p>小計 {formatPrice(line.unitPrice * line.quantity)}</p>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </CardContent>
+                <CardFooter className="justify-end">
+                  <p>{group.storeName}の小計 {formatPrice(group.subtotal)}</p>
+                </CardFooter>
+              </Card>
             ))}
             <p className="text-right text-xl font-bold">合計 {formatPrice(cart.total)}</p>
             <div className="space-y-2">
@@ -105,16 +121,16 @@ export default async function CartPage({
                 <>
                   <span
                     aria-disabled="true"
-                    className="inline-block cursor-not-allowed rounded border px-4 py-2 opacity-50"
+                    className={cn(buttonVariants(), "cursor-not-allowed opacity-50")}
                   >
                     注文手続きへ
                   </span>
-                  <p className="text-red-700">購入できない商品があります。数量を変えるか削除してください</p>
+                  <p className="text-destructive text-sm">購入できない商品があります。数量を変えるか削除してください</p>
                 </>
               ) : (
-                <Link href="/checkout" className="inline-block rounded border px-4 py-2">
-                  注文手続きへ
-                </Link>
+                <Button asChild>
+                  <Link href="/checkout">注文手続きへ</Link>
+                </Button>
               )}
             </div>
           </>

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 import { candyRainIdProviderId, signIn } from "@/auth"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getSub } from "@/lib/session"
 
 export default async function Page() {
@@ -11,11 +13,21 @@ export default async function Page() {
   }
 
   return (
-    <main>
-      <h1>Candy Rain Stores</h1>
-      <form action={handleSignIn}>
-        <button type="submit">Candy Rain ID でログイン</button>
-      </form>
+    <main className="flex min-h-svh items-center justify-center p-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>
+            <h1 className="text-2xl font-bold tracking-tight">Candy Rain Stores</h1>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={handleSignIn}>
+            <Button type="submit" size="lg" className="w-full">
+              Candy Rain ID でログイン
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   )
 }

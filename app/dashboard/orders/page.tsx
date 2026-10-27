@@ -1,6 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { OrderStatusBadge } from "@/app/components/OrderStatusBadge"
+import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatPrice } from "@/lib/formatPrice"
 import {
   formatOrderDate,
@@ -43,40 +46,57 @@ export default async function OrdersPage({
 
       <nav aria-label="状態で絞り込む" className="flex flex-wrap gap-2">
         {tabs.map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            aria-current={tab.active ? "page" : undefined}
-            className={`rounded border px-3 py-1 text-sm ${tab.active ? "bg-pink-600 text-white" : ""}`}
-          >
-            {tab.label}
-          </Link>
+          <Button key={tab.href} asChild size="sm" variant={tab.active ? "default" : "outline"}>
+            <Link href={tab.href} aria-current={tab.active ? "page" : undefined}>
+              {tab.label}
+            </Link>
+          </Button>
         ))}
       </nav>
 
       {orders.length === 0 ? (
-        <p className="text-gray-600">注文はまだありません</p>
+        <p className="text-muted-foreground">注文はまだありません</p>
       ) : (
-        <ul className="divide-y rounded border">
-          {orders.map((order) => (
-            <li key={order.id}>
-              <Link href={`/dashboard/orders/${order.id}`} className="block space-y-1 p-3 text-sm">
-                <p className="font-medium">注文番号 {orderNumber(order.id)}</p>
-                <p>
-                  {formatOrderDate(order.createdAt)} ・ {order.buyerName}
-                </p>
-                <p>
-                  {formatPrice(order.totalAmount)} ・ {ORDER_STATUS_LABELS[order.status]}
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <span className="sr-only">注文番号</span>
+                </TableHead>
+                <TableHead>注文日時</TableHead>
+                <TableHead>購入者</TableHead>
+                <TableHead className="text-right">合計</TableHead>
+                <TableHead>状態</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell>
+                    <Link
+                      href={`/dashboard/orders/${order.id}`}
+                      className="font-medium underline underline-offset-4"
+                    >
+                      注文番号 {orderNumber(order.id)}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{formatOrderDate(order.createdAt)}</TableCell>
+                  <TableCell>{order.buyerName}</TableCell>
+                  <TableCell className="text-right">{formatPrice(order.totalAmount)}</TableCell>
+                  <TableCell>
+                    <OrderStatusBadge status={order.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
-      <Link href="/dashboard" className="text-blue-700 underline">
-        ダッシュボードに戻る
-      </Link>
+      <Button asChild variant="outline">
+        <Link href="/dashboard">ダッシュボードに戻る</Link>
+      </Button>
     </div>
   )
 }
