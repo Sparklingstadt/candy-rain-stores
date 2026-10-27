@@ -18,9 +18,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
   if (!isUuid(orderId)) notFound()
   const order = await getBuyerOrder(deps(), buyer.sub, orderId)
   if (!order) notFound()
-  const store = order.storeId
-    ? await deps().db.store.findUnique({ where: { id: order.storeId }, select: { slug: true, isPublished: true } })
-    : null
+  const { store } = order
 
   return (
     <>

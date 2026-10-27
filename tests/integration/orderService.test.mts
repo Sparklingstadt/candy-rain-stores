@@ -461,6 +461,24 @@ describe("reads", () => {
     assert.ok(await getBuyerOrder(deps, OTHER.sub, others.orderId))
   })
 
+  it("gets the store's slug and published state with the buyer's order", async () => {
+    const { store, orderId } = await orderOne()
+    assert.deepEqual((await getBuyerOrder(deps, BUYER.sub, orderId))?.store, {
+      slug: store.slug,
+      isPublished: true,
+    })
+    await prisma.store.update({ where: { id: store.id }, data: { isPublished: false } })
+    assert.deepEqual((await getBuyerOrder(deps, BUYER.sub, orderId))?.store, {
+      slug: store.slug,
+      isPublished: false,
+    })
+    await changeOrderStatusAsOwner(deps, store.ownerSub, orderId, "CANCELED")
+    assert.equal((await deleteStore(deps, store.ownerSub, store.slug)).ok, true)
+    const order = await getBuyerOrder(deps, BUYER.sub, orderId)
+    assert.equal(order?.storeId, null)
+    assert.equal(order?.store, null)
+  })
+
   it("lists store orders with an optional status filter and counts RECEIVED", async () => {
     const store = await makeStore()
     const p = await makeProduct(store.id, { stock: 9 })
