@@ -5,12 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getBuyer } from "@/lib/session"
 import { countCartItems } from "@/services/cartService"
+import { getOwnStore } from "@/services/storeService"
 import { UserMenu } from "./UserMenu"
 
 // path: the page the header is on, so signing in brings the buyer back here.
 export async function SiteHeader({ path }: { path: string }) {
   const buyer = await getBuyer()
   const count = buyer ? await countCartItems(deps(), buyer.sub) : 0
+  const ownStore = buyer ? await getOwnStore(deps(), buyer.sub) : null
   return (
     <header className="bg-background border-b text-sm">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 sm:px-8">
@@ -28,6 +30,11 @@ export async function SiteHeader({ path }: { path: string }) {
               <span className="sr-only">）</span>
             </Link>
           </Button>
+          {buyer && (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/dashboard">{ownStore ? "ストアを編集" : "ストアを作成"}</Link>
+            </Button>
+          )}
           {buyer ? (
             <UserMenu name={buyer.name.trim()} email={buyer.email} image={buyer.image} />
           ) : (
