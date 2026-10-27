@@ -56,6 +56,7 @@ test("ストアを作って公開し、削除する", async ({ page, browser, ba
   // delete
   await page.getByLabel("確認のためストア ID を入力").fill(SLUG)
   await page.getByRole("button", { name: "削除する" }).click()
+  await page.getByRole("alertdialog").getByRole("button", { name: "削除する" }).click()
   await expect(page.getByRole("heading", { name: "ストアを作成" })).toBeVisible()
 
   const deleted = await visitorPage.goto(`${baseURL}/s/${SLUG}`)

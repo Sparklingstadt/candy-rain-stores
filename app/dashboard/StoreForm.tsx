@@ -3,6 +3,7 @@
 import { useActionState, useState, useSyncExternalStore } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -164,7 +165,7 @@ export function StoreForm({ store }: { store?: Existing }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={store.logoUrl} alt="現在のロゴ" className="h-16 w-16 rounded-md border object-cover" />
                 <Label className="font-normal">
-                  <input type="checkbox" name="removeLogo" className="accent-primary size-4" />
+                  <Checkbox name="removeLogo" />
                   ロゴを削除
                 </Label>
               </div>
@@ -191,7 +192,7 @@ export function StoreForm({ store }: { store?: Existing }) {
                   className="h-16 w-40 rounded-md border object-cover"
                 />
                 <Label className="font-normal">
-                  <input type="checkbox" name="removeHeader" className="accent-primary size-4" />
+                  <Checkbox name="removeHeader" />
                   ヘッダー画像を削除
                 </Label>
               </div>

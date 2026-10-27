@@ -108,7 +108,7 @@ test("2 つのストアで注文し、オーナーとして注文を進める", 
 
   // cancel
   await page.getByRole("button", { name: "注文をキャンセル" }).click()
-  await page.getByRole("button", { name: "キャンセルする" }).click()
+  await page.getByRole("alertdialog").getByRole("button", { name: "キャンセルする" }).click()
   await expect(page.getByText("状態：キャンセル")).toBeVisible()
 
   // now user1 becomes an owner: create a store and give it a customer's order

@@ -1,11 +1,20 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { cancelOrderAction } from "../actions"
 
 export function CancelOrderForm({ orderId }: { orderId: string }) {
-  const [confirming, setConfirming] = useState(false)
+  const [open, setOpen] = useState(false)
   const [message, setMessage] = useState<string | undefined>()
   const [pending, startTransition] = useTransition()
 
@@ -13,7 +22,7 @@ export function CancelOrderForm({ orderId }: { orderId: string }) {
     startTransition(async () => {
       const result = await cancelOrderAction(orderId)
       setMessage(result.message)
-      setConfirming(false)
+      setOpen(false)
     })
   }
 
@@ -24,23 +33,24 @@ export function CancelOrderForm({ orderId }: { orderId: string }) {
           {message}
         </p>
       )}
-      {confirming ? (
-        <div className="border-destructive/50 space-y-3 rounded-lg border p-4">
-          <p className="text-destructive font-medium">本当にキャンセルしますか？</p>
-          <div className="flex gap-2">
+      <AlertDialog open={open} onOpenChange={(next) => (pending ? undefined : setOpen(next))}>
+        <AlertDialogTrigger asChild>
+          <Button type="button" variant="outline">
+            注文をキャンセル
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>本当にキャンセルしますか？</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>やめる</AlertDialogCancel>
             <Button type="button" variant="destructive" onClick={cancel} disabled={pending}>
               キャンセルする
             </Button>
-            <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={pending}>
-              やめる
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button type="button" variant="outline" onClick={() => setConfirming(true)}>
-          注文をキャンセル
-        </Button>
-      )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
