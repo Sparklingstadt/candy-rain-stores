@@ -32,8 +32,9 @@ export type CartView = {
   hasProblems: boolean
   version: string
 }
+// capped: すでに 1 商品の上限 (MAX_QUANTITY) まで入っていて、何も増えなかった
 export type AddToCartResult =
-  | { ok: true }
+  | { ok: true; capped?: true }
   | { ok: false; code: "not_found" | "own_store" | "cart_full" | "invalid_quantity" }
 
 // カートの行・数量・単価から作る版。どれかが変われば変わる（在庫や公開状態は lineProblem で見る）
@@ -149,6 +150,7 @@ export async function addToCart(
       select: { id: true, quantity: true },
     })
     if (existing) {
+      if (existing.quantity >= MAX_QUANTITY) return { ok: true, capped: true } as const
       await tx.cartItem.update({
         where: { id: existing.id },
         data: { quantity: Math.min(existing.quantity + qty, MAX_QUANTITY) },

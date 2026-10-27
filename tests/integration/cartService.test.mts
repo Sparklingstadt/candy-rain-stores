@@ -66,12 +66,12 @@ describe("addToCart", () => {
     assert.equal(await countCartItems(deps, BUYER), 5)
   })
 
-  it("caps 7 + 5 at 10", async () => {
+  it("caps 7 + 5 at 10 and reports capped when nothing more was added", async () => {
     const p = await makeProduct((await makeStore()).id)
     await addToCart(deps, BUYER, p.id, 7)
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 5), { ok: true })
     assert.equal(await countCartItems(deps, BUYER), 10)
-    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: true })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: true, capped: true })
     assert.equal(await countCartItems(deps, BUYER), 10)
   })
 

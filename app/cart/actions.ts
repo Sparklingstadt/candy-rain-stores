@@ -7,7 +7,7 @@ import { safeReturnTo } from "@/lib/safeReturnTo"
 import { getBuyer, requireBuyer } from "@/lib/session"
 import { addToCart, removeFromCart, setCartQuantity } from "@/services/cartService"
 
-export type AddToCartState = { message?: string; added?: boolean }
+export type AddToCartState = { message?: string; added?: boolean; capped?: boolean }
 
 const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
 const MESSAGES = {
@@ -25,12 +25,15 @@ export async function addToCartAction(
   const buyer = await getBuyer()
   if (!buyer) return { message: "ログインしてください" }
   const quantity = formData.get("quantity")
+  let capped = false
   try {
     const result = await addToCart(deps(), buyer.sub, productId, typeof quantity === "string" ? quantity : "")
     if (!result.ok) return { message: MESSAGES[result.code] }
+    capped = result.capped === true
   } catch {
     return { message: SAVE_FAILED }
   }
+  if (capped) return { added: true, capped: true }
   revalidatePath("/cart")
   return { added: true }
 }

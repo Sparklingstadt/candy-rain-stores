@@ -63,7 +63,7 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: 
       )}
       {state.added && (
         <p role="status">
-          カートに入れました{" "}
+          {state.capped ? `1 商品 ${MAX_QUANTITY} 個までです` : "カートに入れました"}{" "}
           <Link href="/cart" className="text-blue-700 underline">
             カートを見る
           </Link>
