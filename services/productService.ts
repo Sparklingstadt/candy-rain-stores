@@ -64,6 +64,22 @@ export function listProductsForStorePage(
   return listProductsByStore(deps, storeId, !includeUnpublished)
 }
 
+// Published products of the same store other than the one being viewed, newest first.
+export async function listOtherProducts(
+  deps: StoreDeps,
+  storeId: string,
+  excludeProductId: string,
+  limit: number,
+): Promise<ProductView[]> {
+  const products = await deps.db.product.findMany({
+    where: { storeId, isPublished: true, id: { not: excludeProductId } },
+    include: withImages,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+  })
+  return products.map((p) => toProductView(deps, p))
+}
+
 export async function getOwnProduct(
   deps: StoreDeps,
   ownerSub: string,

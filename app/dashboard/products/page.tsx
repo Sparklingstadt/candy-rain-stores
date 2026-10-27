@@ -19,7 +19,7 @@ export default async function ProductsPage() {
   const full = products.length >= MAX_PRODUCTS_PER_STORE
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4">
+    <div className="space-y-6">
       <header className="flex items-center justify-between gap-3 border-b pb-3">
         <h1 className="text-xl font-bold">商品</h1>
         {full ? (
@@ -39,7 +39,7 @@ export default async function ProductsPage() {
       {products.length === 0 ? (
         <p className="text-muted-foreground">まだ商品がありません</p>
       ) : (
-        <div className="rounded-lg border">
+        <div className="bg-card rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -86,9 +86,11 @@ export default async function ProductsPage() {
         </div>
       )}
 
-      <Button asChild variant="outline">
-        <Link href="/dashboard">ダッシュボードに戻る</Link>
-      </Button>
+      <div>
+        <Button asChild variant="outline">
+          <Link href="/dashboard">ダッシュボードに戻る</Link>
+        </Button>
+      </div>
     </div>
   )
 }
