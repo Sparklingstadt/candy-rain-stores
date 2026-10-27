@@ -1,22 +1,29 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getImageStorage } from "@/lib/imageStorage"
-import { prisma } from "@/lib/prisma"
+import { cache } from "react"
+import { deps } from "@/app/dashboard/deps"
 import { getSub } from "@/lib/session"
 import { normalizeSlug } from "@/lib/storeValidation"
+import { listProductsForStorePage } from "@/services/productService"
 import { getStoreForViewer } from "@/services/storeService"
+import { ProductGrid } from "./ProductGrid"
 
 type Props = { params: Promise<{ slug: string }> }
 
-async function load(params: Props["params"]) {
+const load = cache(async (params: Props["params"]) => {
   const { slug } = await params
-  return getStoreForViewer(
-    { db: prisma, storage: getImageStorage() },
-    normalizeSlug(slug),
-    await getSub(),
+  const viewerSub = await getSub()
+  const found = await getStoreForViewer(deps(), normalizeSlug(slug), viewerSub)
+  if (!found) return null
+  const { store } = found
+  const products = await listProductsForStorePage(
+    deps(),
+    store.id,
+    viewerSub !== null && viewerSub === store.ownerSub,
   )
-}
+  return { ...found, products }
+})
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const found = await load(params)
@@ -26,7 +33,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StorePage({ params }: Props) {
   const found = await load(params)
   if (!found) notFound()
-  const { store, isOwnerPreview } = found
+  const { store, isOwnerPreview, products } = found
 
   return (
     <div style={{ "--store-color": store.themeColor } as React.CSSProperties}>
@@ -58,7 +65,7 @@ export default async function StorePage({ params }: Props) {
         </header>
         {store.description && <p className="whitespace-pre-line">{store.description}</p>}
         <section className="border-t pt-4">
-          <p className="text-gray-600">商品はまだありません</p>
+          <ProductGrid slug={store.slug} products={products} />
         </section>
       </main>
     </div>
