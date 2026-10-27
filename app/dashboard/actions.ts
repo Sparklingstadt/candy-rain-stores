@@ -137,6 +137,9 @@ export async function deleteStoreAction(
   if (!result.ok && result.code === "confirm_mismatch") {
     return { error: "ストア ID が一致しません" }
   }
+  if (!result.ok && result.code === "has_open_orders") {
+    return { error: "対応中の注文があるため削除できません" }
+  }
   revalidatePath("/dashboard")
   if (store) revalidatePath("/s/" + store.slug)
   return {}

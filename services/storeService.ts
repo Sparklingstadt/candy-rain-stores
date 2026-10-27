@@ -179,17 +179,29 @@ export async function deleteStore(
   deps: StoreDeps,
   ownerSub: string,
   confirmSlug: string,
-): Promise<{ ok: true } | { ok: false; code: "not_found" | "confirm_mismatch" }> {
+): Promise<{ ok: true } | { ok: false; code: "not_found" | "confirm_mismatch" | "has_open_orders" }> {
   const store = await deps.db.store.findUnique({ where: { ownerSub } })
   if (!store) return { ok: false, code: "not_found" }
   if (normalizeSlug(confirmSlug) !== store.slug) return { ok: false, code: "confirm_mismatch" }
 
-  // Product rows (and their image rows) cascade with the store, so collect the file paths first.
-  const productImages = await deps.db.productImage.findMany({
-    where: { product: { storeId: store.id } },
-    select: { path: true },
+  const outcome = await deps.db.$transaction(async (tx) => {
+    // 商品行を placeOrder と同じ ID 順でロックしてから数える。確定中の注文はここで待つか、
+    // 先に確定していれば数に入る（数えた後に対応中の注文が増えることはない）
+    await tx.$queryRaw`SELECT id FROM "Product" WHERE "storeId" = ${store.id}::uuid ORDER BY id FOR UPDATE`
+    const openOrders = await tx.order.count({
+      where: { storeId: store.id, status: { in: ["RECEIVED", "PAID"] } },
+    })
+    if (openOrders > 0) return null
+
+    // Product rows (and their image rows) cascade with the store, so collect the file paths first.
+    const productImages = await tx.productImage.findMany({
+      where: { product: { storeId: store.id } },
+      select: { path: true },
+    })
+    await tx.store.deleteMany({ where: { id: store.id, ownerSub } })
+    return productImages
   })
-  await deps.db.store.deleteMany({ where: { id: store.id, ownerSub } })
-  await removeQuietly(deps.storage, [store.logoPath, store.headerPath, ...productImages.map((i) => i.path)])
+  if (!outcome) return { ok: false, code: "has_open_orders" }
+  await removeQuietly(deps.storage, [store.logoPath, store.headerPath, ...outcome.map((i) => i.path)])
   return { ok: true }
 }
