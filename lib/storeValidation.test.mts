@@ -46,7 +46,10 @@ test("ストア ID は先頭末尾のハイフン・アンダースコア・全�
 test("ストア名は trim し、説明が空なら null、色は小文字化する", () => {
   assert.deepEqual(
     validateStoreFields({ name: "  キャンディ屋  ", description: "", themeColor: "#E85D8F" }),
-    { ok: true, value: { name: "キャンディ屋", description: null, themeColor: "#e85d8f" } },
+    {
+      ok: true,
+      value: { name: "キャンディ屋", description: null, themeColor: "#e85d8f", paymentInstructions: null },
+    },
   )
 })
 
@@ -114,4 +117,15 @@ test("画像は 2MB ちょうどまで", () => {
     ok: false,
     error: "画像は 2MB 以下にしてください",
   })
+})
+
+test("お支払い方法の案内は trim し、空なら null、1,000 文字まで", () => {
+  const base = { name: "店", description: "", themeColor: "#e85d8f" }
+  const ok = validateStoreFields({ ...base, paymentInstructions: "  銀行振込  " })
+  assert.ok(ok.ok && ok.value.paymentInstructions === "銀行振込")
+  const blank = validateStoreFields({ ...base, paymentInstructions: "   " })
+  assert.ok(blank.ok && blank.value.paymentInstructions === null)
+  assert.equal(validateStoreFields({ ...base, paymentInstructions: "あ".repeat(1000) }).ok, true)
+  const long = validateStoreFields({ ...base, paymentInstructions: "あ".repeat(1001) })
+  assert.ok(!long.ok && long.errors.paymentInstructions)
 })

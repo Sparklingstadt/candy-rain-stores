@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { SignOutButton } from "@/app/components/SignOutButton"
 import { requireSub } from "@/lib/session"
+import { countReceivedOrders } from "@/services/orderService"
 import { getOwnStore } from "@/services/storeService"
 import { setPublishedAction } from "./actions"
 import { deps } from "./deps"
@@ -10,6 +11,7 @@ import { StoreForm } from "./StoreForm"
 export default async function DashboardPage() {
   const sub = await requireSub()
   const store = await getOwnStore(deps(), sub)
+  const receivedCount = store ? await countReceivedOrders(deps(), sub) : 0
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4">
@@ -41,6 +43,9 @@ export default async function DashboardPage() {
               <Link href="/dashboard/products" className="text-blue-700 underline">
                 商品を管理
               </Link>
+              <Link href="/dashboard/orders" className="text-blue-700 underline">
+                注文を管理（受付 {receivedCount} 件）
+              </Link>
             </div>
           </section>
           <StoreForm
@@ -49,6 +54,7 @@ export default async function DashboardPage() {
               name: store.name,
               description: store.description,
               themeColor: store.themeColor,
+              paymentInstructions: store.paymentInstructions,
               logoUrl: store.logoUrl,
               headerUrl: store.headerUrl,
             }}

@@ -17,7 +17,13 @@ import { readImageField } from "./formImage"
 
 export type StoreFormState = {
   errors?: FieldErrors
-  values?: { slug?: string; name: string; description: string; themeColor: string }
+  values?: {
+    slug?: string
+    name: string
+    description: string
+    themeColor: string
+    paymentInstructions: string
+  }
   message?: string
   saved?: boolean
 }
@@ -35,6 +41,7 @@ async function parseStoreForm(formData: FormData) {
     name: text(formData, "name"),
     description: text(formData, "description"),
     themeColor: text(formData, "themeColor"),
+    paymentInstructions: text(formData, "paymentInstructions"),
   }
   const fields = validateStoreFields(values)
   const logo = await readImageField(formData, "logo")
