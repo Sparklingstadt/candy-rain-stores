@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Store {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerSub    String   @unique
+  slug        String   @unique
+  name        String
+  description String?
+  logoPath    String?
+  headerPath  String?
+  themeColor  String   @default("#e85d8f")
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
