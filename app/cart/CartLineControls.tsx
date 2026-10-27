@@ -1,5 +1,8 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { MAX_QUANTITY } from "@/lib/orderValidation"
 import { removeFromCartAction, setCartQuantityAction } from "./actions"
 
@@ -7,26 +10,26 @@ export function CartLineControls({ itemId, quantity, name }: { itemId: string; q
   return (
     <div className="flex items-center gap-3">
       <form action={setCartQuantityAction.bind(null, itemId)}>
-        <label>
+        <Label>
           <span className="sr-only">{name}の数量</span>
-          <select
+          <NativeSelect
             name="quantity"
+            size="sm"
             defaultValue={String(quantity)}
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            className="rounded border px-2 py-1"
           >
             {Array.from({ length: MAX_QUANTITY }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
+              <NativeSelectOption key={n} value={n}>
                 {n}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-        </label>
+          </NativeSelect>
+        </Label>
       </form>
       <form action={removeFromCartAction.bind(null, itemId)}>
-        <button type="submit" className="text-red-700 underline">
+        <Button type="submit" variant="ghost" size="sm" className="text-destructive hover:text-destructive">
           削除
-        </button>
+        </Button>
       </form>
     </div>
   )
