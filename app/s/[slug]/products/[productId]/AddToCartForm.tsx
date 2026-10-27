@@ -1,7 +1,8 @@
 "use client"
 
-import Link from "next/link"
-import { useActionState } from "react"
+import { useActionState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
@@ -18,10 +19,19 @@ type Props = {
 }
 
 export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: Props) {
+  const router = useRouter()
   const [state, action, pending] = useActionState<AddToCartState, FormData>(
     addToCartAction.bind(null, productId),
     {},
   )
+
+  // Each submission returns a new state object, so this fires once per add.
+  useEffect(() => {
+    if (!state.added) return
+    toast.success(state.capped ? `1 商品 ${MAX_QUANTITY} 個までです` : "カートに入れました", {
+      action: { label: "カートを見る", onClick: () => router.push("/cart") },
+    })
+  }, [state, router])
 
   const view = addToCartView({ isOwnStore, stock, signedIn })
   if (view === "own_store") return <p className="text-muted-foreground text-sm">自分のストアの商品は購入できません</p>
@@ -60,14 +70,6 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: 
       {state.message && (
         <p role="alert" className="text-destructive text-sm">
           {state.message}
-        </p>
-      )}
-      {state.added && (
-        <p role="status" className="text-sm">
-          {state.capped ? `1 商品 ${MAX_QUANTITY} 個までです` : "カートに入れました"}{" "}
-          <Link href="/cart" className="font-medium underline underline-offset-4">
-            カートを見る
-          </Link>
         </p>
       )}
     </form>

@@ -75,8 +75,8 @@ test("商品を作って公開し、削除する", async ({ page, browser, baseU
 
   // delete the product -> detail page is 404
   await page.getByRole("button", { name: "商品を削除" }).click()
-  await expect(page.getByText("本当に削除しますか？")).toBeVisible()
-  await page.getByRole("button", { name: "削除する" }).click()
+  await expect(page.getByRole("alertdialog").getByText("本当に削除しますか？")).toBeVisible()
+  await page.getByRole("alertdialog").getByRole("button", { name: "削除する" }).click()
   await expect(page).toHaveURL(`${baseURL}/dashboard/products`)
   const gone = await visitorPage.goto(detailUrl)
   expect(gone?.status()).toBe(404)
@@ -87,5 +87,6 @@ test("商品を作って公開し、削除する", async ({ page, browser, baseU
   await page.goto("/dashboard")
   await page.getByLabel("確認のためストア ID を入力").fill(SLUG)
   await page.getByRole("button", { name: "削除する" }).click()
+  await page.getByRole("alertdialog").getByRole("button", { name: "削除する" }).click()
   await expect(page.getByRole("heading", { name: "ストアを作成" })).toBeVisible()
 })

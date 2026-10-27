@@ -1,8 +1,10 @@
 "use client"
 
-import { useActionState, useState, useSyncExternalStore } from "react"
+import { useActionState, useEffect, useState, useSyncExternalStore } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -47,6 +49,10 @@ export function StoreForm({ store }: { store?: Existing }) {
     () => window.location.origin,
     () => "",
   )
+  // Each submission returns a new state object, so this fires once per successful save.
+  useEffect(() => {
+    if (state.saved) toast.success("保存しました")
+  }, [state])
   const values = state.values
   const [slug, setSlug] = useState(values?.slug ?? "")
   const errors = state.errors ?? {}
@@ -164,7 +170,7 @@ export function StoreForm({ store }: { store?: Existing }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={store.logoUrl} alt="現在のロゴ" className="h-16 w-16 rounded-md border object-cover" />
                 <Label className="font-normal">
-                  <input type="checkbox" name="removeLogo" className="accent-primary size-4" />
+                  <Checkbox name="removeLogo" />
                   ロゴを削除
                 </Label>
               </div>
@@ -191,7 +197,7 @@ export function StoreForm({ store }: { store?: Existing }) {
                   className="h-16 w-40 rounded-md border object-cover"
                 />
                 <Label className="font-normal">
-                  <input type="checkbox" name="removeHeader" className="accent-primary size-4" />
+                  <Checkbox name="removeHeader" />
                   ヘッダー画像を削除
                 </Label>
               </div>
@@ -202,11 +208,6 @@ export function StoreForm({ store }: { store?: Existing }) {
           {state.message && (
             <p role="alert" className="text-destructive text-sm">
               {state.message}
-            </p>
-          )}
-          {state.saved && (
-            <p role="status" className="text-sm text-green-700 dark:text-green-400">
-              保存しました
             </p>
           )}
 

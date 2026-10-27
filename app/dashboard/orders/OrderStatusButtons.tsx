@@ -1,6 +1,15 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import type { OrderStatus } from "@/lib/orderStatus"
 import { changeOrderStatusAction } from "./actions"
@@ -33,33 +42,34 @@ export function OrderStatusButtons({ orderId, next }: { orderId: string; next: O
           {message}
         </p>
       )}
-      {confirming ? (
-        <div className="border-destructive/50 space-y-3 rounded-lg border p-4">
-          <p className="text-destructive font-medium">本当にキャンセルしますか？</p>
-          <div className="flex gap-2">
-            <Button type="button" variant="destructive" onClick={() => change("CANCELED")} disabled={pending}>
-              キャンセルする
+      <div className="flex flex-wrap gap-2">
+        {next.map((to) =>
+          to === "CANCELED" ? (
+            <AlertDialog key={to} open={confirming} onOpenChange={(open) => (pending ? undefined : setConfirming(open))}>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="outline" disabled={pending}>
+                  {BUTTON_LABELS[to]}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>本当にキャンセルしますか？</AlertDialogTitle>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={pending}>やめる</AlertDialogCancel>
+                  <Button type="button" variant="destructive" onClick={() => change("CANCELED")} disabled={pending}>
+                    キャンセルする
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : (
+            <Button key={to} type="button" onClick={() => change(to)} disabled={pending}>
+              {BUTTON_LABELS[to]}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={pending}>
-              やめる
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {next.map((to) =>
-            to === "CANCELED" ? (
-              <Button key={to} type="button" variant="outline" onClick={() => setConfirming(true)} disabled={pending}>
-                {BUTTON_LABELS[to]}
-              </Button>
-            ) : (
-              <Button key={to} type="button" onClick={() => change(to)} disabled={pending}>
-                {BUTTON_LABELS[to]}
-              </Button>
-            ),
-          )}
-        </div>
-      )}
+          ),
+        )}
+      </div>
     </div>
   )
 }
