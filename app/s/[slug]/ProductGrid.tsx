@@ -22,7 +22,7 @@ export function ProductGrid({
     )
   }
   return (
-    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))] gap-5">
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:gap-5">
       {products.map((product) => {
         const image = product.images[0]
         return (
