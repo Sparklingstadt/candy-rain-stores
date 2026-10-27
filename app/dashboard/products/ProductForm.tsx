@@ -1,6 +1,11 @@
 "use client"
 
 import { useActionState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   createProductAction,
   updateProductAction,
@@ -18,13 +23,11 @@ type Existing = {
 function FieldError({ message }: { message?: string }) {
   if (!message) return null
   return (
-    <p role="alert" className="mt-1 text-sm text-red-600">
+    <p role="alert" className="text-destructive text-sm">
       {message}
     </p>
   )
 }
-
-const inputClass = "mt-1 block w-full rounded border px-2 py-1"
 
 export function ProductForm({ product }: { product?: Existing }) {
   const editing = product !== undefined
@@ -36,72 +39,84 @@ export function ProductForm({ product }: { product?: Existing }) {
   const errors = state.errors ?? {}
 
   return (
-    <form action={action} className="space-y-4 rounded border p-4">
-      <h2 className="text-lg font-bold">{editing ? "商品を編集" : "商品を追加"}</h2>
-      {/* 開いたときの在庫数。注文で在庫が変わっていたら上書きしない */}
-      {editing && <input type="hidden" name="stockBase" value={String(product.stock)} />}
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h2 className="text-lg font-bold">{editing ? "商品を編集" : "商品を追加"}</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={action} className="space-y-4">
+          {/* 開いたときの在庫数。注文で在庫が変わっていたら上書きしない */}
+          {editing && <input type="hidden" name="stockBase" value={String(product.stock)} />}
 
-      <label className="block text-sm">
-        商品名
-        <input name="name" defaultValue={values?.name ?? product?.name ?? ""} className={inputClass} />
-        <FieldError message={errors.name} />
-      </label>
+          <div className="grid gap-2">
+            <Label htmlFor="product-name">商品名</Label>
+            <Input
+              id="product-name"
+              name="name"
+              defaultValue={values?.name ?? product?.name ?? ""}
+              aria-invalid={errors.name ? true : undefined}
+            />
+            <FieldError message={errors.name} />
+          </div>
 
-      <label className="block text-sm">
-        価格（円）
-        <input
-          name="price"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          defaultValue={values?.price ?? (product ? String(product.price) : "")}
-          className={inputClass}
-        />
-        <FieldError message={errors.price} />
-      </label>
+          <div className="grid gap-2">
+            <Label htmlFor="product-price">価格（円）</Label>
+            <Input
+              id="product-price"
+              name="price"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              defaultValue={values?.price ?? (product ? String(product.price) : "")}
+              aria-invalid={errors.price ? true : undefined}
+            />
+            <FieldError message={errors.price} />
+          </div>
 
-      <label className="block text-sm">
-        在庫数
-        <input
-          name="stock"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          defaultValue={values?.stock ?? (product ? String(product.stock) : "")}
-          className={inputClass}
-        />
-        <FieldError message={errors.stock} />
-      </label>
+          <div className="grid gap-2">
+            <Label htmlFor="product-stock">在庫数</Label>
+            <Input
+              id="product-stock"
+              name="stock"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              defaultValue={values?.stock ?? (product ? String(product.stock) : "")}
+              aria-invalid={errors.stock ? true : undefined}
+            />
+            <FieldError message={errors.stock} />
+          </div>
 
-      <label className="block text-sm">
-        説明文
-        <textarea
-          name="description"
-          rows={5}
-          defaultValue={values?.description ?? product?.description ?? ""}
-          className={inputClass}
-        />
-        <FieldError message={errors.description} />
-      </label>
+          <div className="grid gap-2">
+            <Label htmlFor="product-description">説明文</Label>
+            <Textarea
+              id="product-description"
+              name="description"
+              rows={5}
+              defaultValue={values?.description ?? product?.description ?? ""}
+              aria-invalid={errors.description ? true : undefined}
+            />
+            <FieldError message={errors.description} />
+          </div>
 
-      {state.message && (
-        <p role="alert" className="text-sm text-red-600">
-          {state.message}
-        </p>
-      )}
-      {state.saved && (
-        <p role="status" className="text-sm text-green-700">
-          保存しました
-        </p>
-      )}
+          {state.message && (
+            <p role="alert" className="text-destructive text-sm">
+              {state.message}
+            </p>
+          )}
+          {state.saved && (
+            <p role="status" className="text-sm text-green-700 dark:text-green-400">
+              保存しました
+            </p>
+          )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-pink-600 px-4 py-2 text-white disabled:opacity-50"
-      >
-        {editing ? "保存する" : "作成する"}
-      </button>
-    </form>
+          <Button type="submit" disabled={pending}>
+            {editing ? "保存する" : "作成する"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { Button } from "@/components/ui/button"
 import type { OrderStatus } from "@/lib/orderStatus"
 import { changeOrderStatusAction } from "./actions"
 
@@ -28,55 +29,33 @@ export function OrderStatusButtons({ orderId, next }: { orderId: string; next: O
   return (
     <div className="space-y-2">
       {message && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-destructive text-sm">
           {message}
         </p>
       )}
       {confirming ? (
-        <div className="space-y-2 rounded border border-red-300 p-3">
-          <p>本当にキャンセルしますか？</p>
+        <div className="border-destructive/50 space-y-3 rounded-lg border p-4">
+          <p className="text-destructive font-medium">本当にキャンセルしますか？</p>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => change("CANCELED")}
-              disabled={pending}
-              className="rounded bg-red-600 px-4 py-2 text-white disabled:opacity-40"
-            >
+            <Button type="button" variant="destructive" onClick={() => change("CANCELED")} disabled={pending}>
               キャンセルする
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              disabled={pending}
-              className="rounded border px-4 py-2 disabled:opacity-40"
-            >
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={pending}>
               やめる
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {next.map((to) =>
             to === "CANCELED" ? (
-              <button
-                key={to}
-                type="button"
-                onClick={() => setConfirming(true)}
-                disabled={pending}
-                className="rounded border px-4 py-2 disabled:opacity-40"
-              >
+              <Button key={to} type="button" variant="outline" onClick={() => setConfirming(true)} disabled={pending}>
                 {BUTTON_LABELS[to]}
-              </button>
+              </Button>
             ) : (
-              <button
-                key={to}
-                type="button"
-                onClick={() => change(to)}
-                disabled={pending}
-                className="rounded bg-pink-600 px-4 py-2 text-white disabled:opacity-40"
-              >
+              <Button key={to} type="button" onClick={() => change(to)} disabled={pending}>
                 {BUTTON_LABELS[to]}
-              </button>
+              </Button>
             ),
           )}
         </div>

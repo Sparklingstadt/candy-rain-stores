@@ -1,5 +1,8 @@
 import Link from "next/link"
 import { SignOutButton } from "@/app/components/SignOutButton"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSub } from "@/lib/session"
 import { countReceivedOrders } from "@/services/orderService"
 import { getOwnStore } from "@/services/storeService"
@@ -24,30 +27,35 @@ export default async function DashboardPage() {
         <StoreForm />
       ) : (
         <>
-          <section
-            className="space-y-3 rounded border-l-8 p-4"
-            style={{ borderLeftColor: store.themeColor }}
-          >
-            <h1 className="text-xl font-bold">{store.name}</h1>
-            <p className="text-sm">{store.isPublished ? "公開中" : "非公開"}</p>
-            <div className="flex flex-wrap items-center gap-3">
-              <form action={setPublishedAction}>
-                <input type="hidden" name="publish" value={store.isPublished ? "false" : "true"} />
-                <button type="submit" className="rounded border px-4 py-2">
-                  {store.isPublished ? "非公開にする" : "公開する"}
-                </button>
-              </form>
-              <Link href={`/s/${store.slug}`} className="text-blue-700 underline">
-                ストアページを見る
-              </Link>
-              <Link href="/dashboard/products" className="text-blue-700 underline">
-                商品を管理
-              </Link>
-              <Link href="/dashboard/orders" className="text-blue-700 underline">
-                注文を管理（受付 {receivedCount} 件）
-              </Link>
-            </div>
-          </section>
+          <Card className="border-l-8" style={{ borderLeftColor: store.themeColor }}>
+            <CardHeader>
+              <CardTitle>
+                <h1 className="text-xl font-bold">{store.name}</h1>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Badge variant={store.isPublished ? "default" : "secondary"}>
+                {store.isPublished ? "公開中" : "非公開"}
+              </Badge>
+              <div className="flex flex-wrap items-center gap-3">
+                <form action={setPublishedAction}>
+                  <input type="hidden" name="publish" value={store.isPublished ? "false" : "true"} />
+                  <Button type="submit" variant="outline">
+                    {store.isPublished ? "非公開にする" : "公開する"}
+                  </Button>
+                </form>
+                <Button asChild variant="outline">
+                  <Link href={`/s/${store.slug}`}>ストアページを見る</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/dashboard/products">商品を管理</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/dashboard/orders">注文を管理（受付 {receivedCount} 件）</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           <StoreForm
             store={{
               slug: store.slug,

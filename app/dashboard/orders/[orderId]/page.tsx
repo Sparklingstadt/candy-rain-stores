@@ -1,8 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
+import { OrderStatusBadge } from "@/app/components/OrderStatusBadge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/formatPrice"
-import { formatOrderDate, nextOwnerStatuses, ORDER_STATUS_LABELS, orderNumber } from "@/lib/orderStatus"
+import { formatOrderDate, nextOwnerStatuses, orderNumber } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
 import { getStoreOrder } from "@/services/orderService"
 import { isUuid } from "@/services/productService"
@@ -31,48 +35,69 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
         </div>
         <div>
           <dt className="inline font-medium">状態：</dt>
-          <dd className="inline">{ORDER_STATUS_LABELS[order.status]}</dd>
+          <dd className="inline">
+            <OrderStatusBadge status={order.status} />
+          </dd>
         </div>
       </dl>
 
-      <section className="space-y-1">
-        <h2 className="text-lg font-bold">購入者</h2>
-        <p>お名前 {order.buyerName}</p>
-        <p>メールアドレス {order.buyerEmail}</p>
-        <p>電話番号 {order.phone}</p>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-lg font-bold">購入者</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <p>お名前 {order.buyerName}</p>
+          <p>メールアドレス {order.buyerEmail}</p>
+          <p>電話番号 {order.phone}</p>
+        </CardContent>
+      </Card>
 
-      <section className="space-y-1">
-        <h2 className="text-lg font-bold">お届け先</h2>
-        <p>〒{order.postalCode}</p>
-        <p>
-          {order.prefecture}
-          {order.address}
-        </p>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-lg font-bold">お届け先</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <p>〒{order.postalCode}</p>
+          <p>
+            {order.prefecture}
+            {order.address}
+          </p>
+        </CardContent>
+      </Card>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-bold">注文内容</h2>
-        <ul className="space-y-1">
-          {order.items.map((item) => (
-            <li key={item.id} className="flex justify-between gap-2">
-              <span>
-                {item.productName}（{formatPrice(item.unitPrice)}）× {item.quantity}
-              </span>
-              <span>{formatPrice(item.unitPrice * item.quantity)}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-right text-xl font-bold">合計 {formatPrice(order.totalAmount)}</p>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 className="text-lg font-bold">注文内容</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <ul className="space-y-1">
+            {order.items.map((item) => (
+              <li key={item.id} className="flex justify-between gap-2">
+                <span>
+                  {item.productName}（{formatPrice(item.unitPrice)}）× {item.quantity}
+                </span>
+                <span>{formatPrice(item.unitPrice * item.quantity)}</span>
+              </li>
+            ))}
+          </ul>
+          <Separator />
+          <p className="text-right text-xl font-bold">合計 {formatPrice(order.totalAmount)}</p>
+        </CardContent>
+      </Card>
 
       <OrderStatusButtons orderId={order.id} next={nextOwnerStatuses(order.status)} />
 
-      <p>
-        <Link href="/dashboard/orders" className="text-blue-700 underline">
-          注文一覧へ戻る
-        </Link>
-      </p>
+      <div>
+        <Button asChild variant="outline">
+          <Link href="/dashboard/orders">注文一覧へ戻る</Link>
+        </Button>
+      </div>
     </div>
   )
 }

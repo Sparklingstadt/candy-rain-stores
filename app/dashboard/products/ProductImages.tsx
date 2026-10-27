@@ -1,6 +1,11 @@
 "use client"
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { MAX_IMAGES_PER_PRODUCT } from "@/lib/productValidation"
 import { MAX_IMAGE_BYTES } from "@/lib/storeValidation"
 import {
@@ -41,76 +46,78 @@ export function ProductImages({ productId, images }: { productId: string; images
   const error = sizeError ?? state.error
 
   return (
-    <section className="space-y-3 rounded border p-4">
-      <h2 className="text-lg font-bold">画像</h2>
-
-      {images.length > 0 && (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {images.map((image, index) => (
-            <li key={image.id} className="space-y-2 text-sm">
-              <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={image.url}
-                  alt={`商品画像 ${index + 1}`}
-                  className="aspect-square w-full rounded object-cover"
-                />
-                {index === 0 && (
-                  <span className="absolute left-1 top-1 rounded bg-pink-600 px-2 py-0.5 text-xs text-white">
-                    1 枚目
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {index !== 0 && (
-                  <button
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h2 className="text-lg font-bold">画像</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {images.length > 0 && (
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {images.map((image, index) => (
+              <li key={image.id} className="space-y-2 text-sm">
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image.url}
+                    alt={`商品画像 ${index + 1}`}
+                    className="aspect-square w-full rounded-md border object-cover"
+                  />
+                  {index === 0 && <Badge className="absolute top-1 left-1">1 枚目</Badge>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {index !== 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => startTransition(() => makeProductImageFirstAction(productId, image.id))}
+                    >
+                      1 枚目にする
+                    </Button>
+                  )}
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-destructive/50 text-destructive hover:text-destructive"
                     disabled={busy}
-                    onClick={() => startTransition(() => makeProductImageFirstAction(productId, image.id))}
-                    className="rounded border px-2 py-1 disabled:opacity-50"
+                    onClick={() => startTransition(() => removeProductImageAction(productId, image.id))}
                   >
-                    1 枚目にする
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => startTransition(() => removeProductImageAction(productId, image.id))}
-                  className="rounded border border-red-600 px-2 py-1 text-red-700 disabled:opacity-50"
-                >
-                  削除
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                    削除
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <form ref={formRef} action={action} className="text-sm">
-        <label className="block">
-          画像を追加
-          <input
+        <form ref={formRef} action={action} className="grid gap-2 text-sm">
+          <Label htmlFor="product-image-add">画像を追加</Label>
+          <Input
+            id="product-image-add"
             ref={inputRef}
             type="file"
             name="image"
             accept="image/png,image/jpeg,image/webp"
             disabled={full || uploading}
             onChange={(e) => onChange(e.currentTarget)}
-            className="mt-1 block w-full rounded border px-2 py-1"
           />
-        </label>
-        {full && <p className="mt-1 text-gray-600">画像は {MAX_IMAGES_PER_PRODUCT} 枚までです</p>}
-        {uploading && (
-          <p role="status" className="mt-1 text-gray-600">
-            アップロード中…
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="mt-1 text-red-600">
-            {error}
-          </p>
-        )}
-      </form>
-    </section>
+          {full && <p className="text-muted-foreground">画像は {MAX_IMAGES_PER_PRODUCT} 枚までです</p>}
+          {uploading && (
+            <p role="status" className="text-muted-foreground">
+              アップロード中…
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="text-destructive">
+              {error}
+            </p>
+          )}
+        </form>
+      </CardContent>
+    </Card>
   )
 }
