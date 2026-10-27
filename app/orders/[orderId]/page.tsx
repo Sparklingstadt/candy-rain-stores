@@ -12,7 +12,6 @@ import { formatOrderDate, orderNumber } from "@/lib/orderStatus"
 import { requireBuyer } from "@/lib/session"
 import { getBuyerOrder } from "@/services/orderService"
 import { isUuid } from "@/services/productService"
-import { CancelOrderForm } from "./CancelOrderForm"
 
 export const metadata: Metadata = { title: "注文の詳細" }
 
@@ -105,7 +104,6 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
           </CardContent>
         </Card>
 
-        {order.status === "RECEIVED" && <CancelOrderForm orderId={order.id} />}
         <Button asChild variant="outline">
           <Link href="/orders">注文履歴へ戻る</Link>
         </Button>

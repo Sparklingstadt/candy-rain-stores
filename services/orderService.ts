@@ -204,24 +204,16 @@ export async function getStoreOrder(deps: StoreDeps, ownerSub: string, orderId: 
   return deps.db.order.findFirst({ where: { id: orderId, storeId }, include: withItems })
 }
 
-type Ownership = { storeId: string } | { buyerSub: string }
-
-async function changeStatus(
-  deps: StoreDeps,
-  actor: "owner" | "buyer",
-  ownership: Ownership,
-  orderId: string,
-  to: OrderStatus,
-): Promise<ChangeResult> {
+async function changeStatus(deps: StoreDeps, storeId: string, orderId: string, to: OrderStatus): Promise<ChangeResult> {
   return deps.db.$transaction(async (tx) => {
-    const order = await tx.order.findFirst({ where: { id: orderId, ...ownership }, select: { status: true } })
+    const order = await tx.order.findFirst({ where: { id: orderId, storeId }, select: { status: true } })
     if (!order) return { ok: false, code: "not_found" } as const
     const from = order.status
-    if (!canTransition(actor, from, to)) return { ok: false, code: "invalid_transition" } as const
+    if (!canTransition(from, to)) return { ok: false, code: "invalid_transition" } as const
 
     // 読んだ状態のままのときだけ変える。同時に変えられていたら 0 件になる
     const { count } = await tx.order.updateMany({
-      where: { id: orderId, status: from, ...ownership },
+      where: { id: orderId, status: from, storeId },
       data: { status: to },
     })
     if (count === 0) return { ok: false, code: "conflict" } as const
@@ -253,10 +245,5 @@ export async function changeOrderStatusAsOwner(
   if (!isUuid(orderId)) return { ok: false, code: "not_found" }
   const storeId = await ownStoreId(deps, ownerSub)
   if (!storeId) return { ok: false, code: "not_found" }
-  return changeStatus(deps, "owner", { storeId }, orderId, to)
-}
-
-export async function cancelOrderAsBuyer(deps: StoreDeps, buyerSub: string, orderId: string): Promise<ChangeResult> {
-  if (!isUuid(orderId)) return { ok: false, code: "not_found" }
-  return changeStatus(deps, "buyer", { buyerSub }, orderId, "CANCELED")
+  return changeStatus(deps, storeId, orderId, to)
 }

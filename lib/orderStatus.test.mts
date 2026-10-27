@@ -22,11 +22,9 @@ test("状態と表示名", () => {
 
 test("canTransition", () => {
   const ownerAllowed = ["RECEIVED>PAID", "PAID>SHIPPED", "RECEIVED>CANCELED", "PAID>CANCELED"]
-  const buyerAllowed = ["RECEIVED>CANCELED"]
   for (const from of ORDER_STATUSES) {
     for (const to of ORDER_STATUSES) {
-      assert.equal(canTransition("owner", from, to), ownerAllowed.includes(`${from}>${to}`), `owner ${from}>${to}`)
-      assert.equal(canTransition("buyer", from, to), buyerAllowed.includes(`${from}>${to}`), `buyer ${from}>${to}`)
+      assert.equal(canTransition(from, to), ownerAllowed.includes(`${from}>${to}`), `${from}>${to}`)
     }
   }
 })
@@ -37,7 +35,7 @@ test("nextOwnerStatuses", () => {
   assert.deepEqual(nextOwnerStatuses("SHIPPED"), [])
   assert.deepEqual(nextOwnerStatuses("CANCELED"), [])
   for (const from of ORDER_STATUSES) {
-    for (const to of nextOwnerStatuses(from as OrderStatus)) assert.equal(canTransition("owner", from, to), true)
+    for (const to of nextOwnerStatuses(from as OrderStatus)) assert.equal(canTransition(from, to), true)
   }
 })
 
