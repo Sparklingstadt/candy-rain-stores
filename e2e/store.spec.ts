@@ -60,6 +60,13 @@ test("ストアを作って公開し、削除する", async ({ page, browser, ba
   await visitorPage.goto(`${baseURL}/orders`)
   await expect(visitorPage.locator('input[name="password"]')).toBeVisible()
 
+  // the owner reaches the edit page from the header and from their store page
+  await page.goto(`${baseURL}/s/${SLUG}`)
+  await expect(page.getByRole("banner").getByRole("link", { name: "ストアを編集" })).toBeVisible()
+  // the second link is the button next to the store name (the first is in the header)
+  await page.getByRole("link", { name: "ストアを編集" }).nth(1).click()
+  await expect(page).toHaveURL(`${baseURL}/dashboard`)
+
   // delete
   await page.getByLabel("確認のためストア ID を入力").fill(SLUG)
   await page.getByRole("button", { name: "削除する" }).click()

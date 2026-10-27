@@ -55,7 +55,7 @@ const load = cache(async (params: Props["params"]) => {
     store.id,
     viewerSub !== null && viewerSub === store.ownerSub,
   )
-  return { ...found, products }
+  return { ...found, products, isOwner: viewerSub !== null && viewerSub === store.ownerSub }
 })
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -74,7 +74,7 @@ function tabHref(slug: string, filter: Filter, sort: Sort): string {
 export default async function StorePage({ params, searchParams }: Props) {
   const found = await load(params)
   if (!found) notFound()
-  const { store, isOwnerPreview, products } = found
+  const { store, isOwnerPreview, products, isOwner } = found
   const query = await searchParams
   const filter = parseFilter(query.filter)
   const sort = parseSort(query.sort)
@@ -134,7 +134,12 @@ export default async function StorePage({ params, searchParams }: Props) {
               /s/{store.slug}・商品 {published.length} 点
             </p>
           </div>
-          <div className="self-end pb-2">
+          <div className="flex flex-wrap gap-2 self-end pb-2">
+            {isOwner && (
+              <Button asChild size="lg" variant="outline" className="h-11 rounded-[10px] px-5">
+                <Link href="/dashboard">ストアを編集</Link>
+              </Button>
+            )}
             <Button
               asChild
               size="lg"
