@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache"
 import { notFound, redirect } from "next/navigation"
-import { MAX_IMAGES_PER_PRODUCT, MAX_PRODUCTS_PER_STORE, validateProductFields, type ProductFieldErrors } from "@/lib/productValidation"
+import {
+  MAX_IMAGES_PER_PRODUCT,
+  MAX_PRODUCTS_PER_STORE,
+  parseHalfWidthInteger,
+  validateProductFields,
+  type ProductFieldErrors,
+} from "@/lib/productValidation"
 import { requireSub } from "@/lib/session"
 import {
   addProductImage,
@@ -27,6 +33,7 @@ export type ProductFormState = {
 const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
 const PRODUCT_LIMIT = `商品は ${MAX_PRODUCTS_PER_STORE} 件までです`
 const IMAGE_LIMIT = `画像は ${MAX_IMAGES_PER_PRODUCT} 枚までです`
+const STOCK_CHANGED = "在庫が注文で変わりました。画面を更新してください"
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name)
@@ -84,17 +91,24 @@ export async function updateProductAction(
     price: text(formData, "price"),
     stock: text(formData, "stock"),
   }
-  const fields = validateProductFields(values)
+  // 編集フォームを開いたときの在庫数。読めなければ在庫が変わったものとして扱う
+  const stockBase = parseHalfWidthInteger(text(formData, "stockBase"))
+  if (stockBase === null) return { message: STOCK_CHANGED, values }
+  const fields = validateProductFields(values, { stockBase })
   if (!fields.ok) return { errors: fields.errors, values }
 
-  let product
+  let result
   try {
-    product = await updateProduct(deps(), sub, productId, fields.value)
+    result = await updateProduct(deps(), sub, productId, fields.value, stockBase)
   } catch (error) {
     console.error("updateProductAction failed", error)
     return { message: SAVE_FAILED, values }
   }
-  if (!product) notFound()
+  if (!result.ok) {
+    if (result.code === "not_found") notFound()
+    // 再読み込みしないことで、入力した値とこの案内を残す
+    return { message: STOCK_CHANGED, values }
+  }
   await revalidateProduct(sub, productId)
   return { saved: true }
 }

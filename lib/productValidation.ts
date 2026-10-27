@@ -16,18 +16,23 @@ const PRICE_MIN = 1
 const PRICE_MAX = 9_999_999
 const STOCK_MAX = 99_999
 
-function parseHalfWidthInteger(raw: string): number | null {
+export function parseHalfWidthInteger(raw: string): number | null {
   const digits = raw.trim().replaceAll(",", "")
   if (!/^[0-9]+$/.test(digits)) return null
   return Number(digits)
 }
 
-export function validateProductFields(raw: {
-  name: string
-  description: string
-  price: string
-  stock: string
-}): { ok: true; value: ProductFields } | { ok: false; errors: ProductFieldErrors } {
+// stockBase は編集フォームを開いたときの在庫数。変えていない在庫数には上限を当てない
+// （キャンセルで在庫が戻り上限を超えても、在庫以外の項目は保存できるようにする）
+export function validateProductFields(
+  raw: {
+    name: string
+    description: string
+    price: string
+    stock: string
+  },
+  options: { stockBase?: number } = {},
+): { ok: true; value: ProductFields } | { ok: false; errors: ProductFieldErrors } {
   const errors: ProductFieldErrors = {}
 
   const name = raw.name.trim()
@@ -46,7 +51,7 @@ export function validateProductFields(raw: {
   }
 
   const stock = parseHalfWidthInteger(raw.stock)
-  if (stock === null || stock > STOCK_MAX) {
+  if (stock === null || (stock > STOCK_MAX && stock !== options.stockBase)) {
     errors.stock = "在庫数は 0〜99,999 の半角数字で入力してください"
   }
 

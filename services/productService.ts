@@ -100,13 +100,38 @@ export async function createProduct(
   })
 }
 
+export type UpdateProductResult =
+  | { ok: true; product: ProductView }
+  | { ok: false; code: "not_found" | "stock_changed" }
+
+// stockBase は編集フォームを開いたときの在庫数。注文やキャンセルで在庫は増減するので、
+// 在庫数を変えていなければ書き込まず、変えたときは開いたときの在庫のままの場合だけ書き込む
 export async function updateProduct(
   deps: StoreDeps,
   ownerSub: string,
   productId: string,
   fields: ProductFields,
-): Promise<ProductView | null> {
-  return mutateOwn(deps, ownerSub, productId, fields)
+  stockBase: number,
+): Promise<UpdateProductResult> {
+  if (!isUuid(productId)) return { ok: false, code: "not_found" }
+  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
+  if (!store) return { ok: false, code: "not_found" }
+  const { stock, ...rest } = fields
+  const stockChanged = stock !== stockBase
+  const { count } = await deps.db.product.updateMany({
+    where: { id: productId, storeId: store.id, ...(stockChanged ? { stock: stockBase } : {}) },
+    data: stockChanged ? fields : rest,
+  })
+  if (count === 0) {
+    if (!stockChanged) return { ok: false, code: "not_found" }
+    const exists = await deps.db.product.findFirst({
+      where: { id: productId, storeId: store.id },
+      select: { id: true },
+    })
+    return { ok: false, code: exists ? "stock_changed" : "not_found" }
+  }
+  const product = await getOwnProduct(deps, ownerSub, productId)
+  return product ? { ok: true, product } : { ok: false, code: "not_found" }
 }
 
 export async function setProductPublished(

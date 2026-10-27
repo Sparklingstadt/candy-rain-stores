@@ -113,3 +113,19 @@ test("複数の誤りを同時に返す", () => {
     },
   )
 })
+
+test("在庫数を変えていないときは上限を超えていても受け付ける", () => {
+  // キャンセルで在庫が戻り 99,999 を超えた商品でも、在庫以外の編集はできる
+  assert.deepEqual(validateProductFields({ ...valid, stock: "100,005" }, { stockBase: 100005 }), {
+    ok: true,
+    value: { name: "キャンディ", description: null, price: 100, stock: 100005 },
+  })
+  assert.deepEqual(validateProductFields({ ...valid, stock: "100006" }, { stockBase: 100005 }), {
+    ok: false,
+    errors: { stock: STOCK_MESSAGE },
+  })
+  assert.deepEqual(validateProductFields({ ...valid, stock: "-1" }, { stockBase: 100005 }), {
+    ok: false,
+    errors: { stock: STOCK_MESSAGE },
+  })
+})
