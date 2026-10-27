@@ -15,6 +15,7 @@ import {
   getStoreOrder,
   listBuyerOrders,
   listStoreOrders,
+  MAX_ORDER_TOTAL,
   placeOrder,
   type Buyer,
 } from "../../services/orderService"
@@ -274,6 +275,35 @@ describe("placeOrder with a stale checkout", () => {
     const r = await placeOrder(deps, BUYER, SHIPPING, "")
     assert.equal(r.ok === false && r.code, "changed")
     await assertNothingPlaced(a, b)
+  })
+})
+
+describe("placeOrder total limit", () => {
+  it("returns total_too_large and creates nothing when one store's total exceeds the limit", async () => {
+    const big = await makeStore()
+    const small = await makeStore()
+    const p = await makeProduct(big.id, { price: 2_000_000_000, stock: 9 })
+    const q = await makeProduct(small.id, { price: 100, stock: 9 })
+    await add(BUYER, p.id, 2)
+    await add(BUYER, q.id, 1)
+    assert.deepEqual(await place(BUYER), { ok: false, code: "total_too_large" })
+    assert.equal(await prisma.order.count(), 0)
+    assert.equal(await stockOf(p.id), 9)
+    assert.equal(await stockOf(q.id), 9)
+    assert.equal(await prisma.cartItem.count({ where: { buyerSub: BUYER.sub } }), 2)
+  })
+
+  it("accepts a total exactly at the limit", async () => {
+    assert.equal(MAX_ORDER_TOTAL, 2_147_483_647)
+    const s = await makeStore()
+    const p = await makeProduct(s.id, { price: MAX_ORDER_TOTAL - 1 })
+    const q = await makeProduct(s.id, { price: 1 })
+    await add(BUYER, p.id, 1)
+    await add(BUYER, q.id, 1)
+    const r = await place(BUYER)
+    assert.equal(r.ok, true)
+    if (!r.ok) throw new Error("unreachable")
+    assert.equal((await getBuyerOrder(deps, BUYER.sub, r.orderIds[0]))?.totalAmount, MAX_ORDER_TOTAL)
   })
 })
 

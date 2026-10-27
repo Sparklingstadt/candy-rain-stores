@@ -15,7 +15,11 @@ export type PlaceOrderResult =
   | { ok: false; code: "problems"; problems: OrderProblem[] }
   // 注文手続き画面で見せたカートから行・数量・単価が変わった。version は今のカートの版
   | { ok: false; code: "changed"; version: string }
+  | { ok: false; code: "total_too_large" }
 export type ChangeResult = { ok: true } | { ok: false; code: "not_found" | "invalid_transition" | "conflict" }
+
+// Order.totalAmount は INTEGER。1 ストアへの注文の合計はこれを超えられない
+export const MAX_ORDER_TOTAL = 2_147_483_647
 
 // OrderItem には並び順の列がないので、1 注文の中では ID を昇順に振って作成順を表す
 const withItems = { items: { orderBy: { id: "asc" } } } as const
@@ -75,6 +79,10 @@ export async function placeOrder(
       const group = groups.get(storeId) ?? []
       group.push({ productId: line.productId, quantity: line.quantity })
       groups.set(storeId, group)
+    }
+    for (const lines of groups.values()) {
+      const total = lines.reduce((sum, line) => sum + byId.get(line.productId)!.price * line.quantity, 0)
+      if (total > MAX_ORDER_TOTAL) return { ok: false, code: "total_too_large" } as const
     }
 
     for (const line of [...cart].sort((a, b) => (a.productId < b.productId ? -1 : 1))) {
