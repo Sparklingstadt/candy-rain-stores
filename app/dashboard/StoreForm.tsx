@@ -113,6 +113,7 @@ export function StoreForm({ store }: { store?: Existing }) {
               id="store-description"
               name="description"
               rows={4}
+              className="min-h-24"
               defaultValue={values?.description ?? store?.description ?? ""}
               aria-invalid={errors.description ? true : undefined}
             />
@@ -138,6 +139,7 @@ export function StoreForm({ store }: { store?: Existing }) {
               id="store-paymentInstructions"
               name="paymentInstructions"
               rows={4}
+              className="min-h-24"
               defaultValue={values?.paymentInstructions ?? store?.paymentInstructions ?? ""}
               aria-invalid={errors.paymentInstructions ? true : undefined}
             />
@@ -211,7 +213,7 @@ export function StoreForm({ store }: { store?: Existing }) {
           <Button
             type="submit"
             disabled={pending}
-            className="text-white"
+            className="text-white hover:opacity-90"
             style={{ backgroundColor: store?.themeColor ?? DEFAULT_THEME_COLOR }}
           >
             {editing ? "保存する" : "作成する"}

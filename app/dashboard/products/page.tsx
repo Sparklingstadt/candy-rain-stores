@@ -66,7 +66,7 @@ export default async function ProductsPage() {
                       <div className="bg-muted h-12 w-12 rounded-md" aria-hidden="true" />
                     )}
                   </TableCell>
-                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell className="min-w-40 font-medium whitespace-normal break-words">{product.name}</TableCell>
                   <TableCell className="text-right">{formatPrice(product.price)}</TableCell>
                   <TableCell className="text-right">{product.stock}</TableCell>
                   <TableCell>

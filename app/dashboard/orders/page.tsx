@@ -61,7 +61,9 @@ export default async function OrdersPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>注文番号</TableHead>
+                <TableHead>
+                  <span className="sr-only">注文番号</span>
+                </TableHead>
                 <TableHead>注文日時</TableHead>
                 <TableHead>購入者</TableHead>
                 <TableHead className="text-right">合計</TableHead>

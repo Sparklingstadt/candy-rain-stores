@@ -38,7 +38,7 @@ export default async function ProductPage({ params }: Props) {
     <div style={{ "--store-color": store.themeColor } as React.CSSProperties}>
       <SiteHeader path={path} />
       {isOwnerPreview && (
-        <Alert className="rounded-none border-x-0 border-t-0">
+        <Alert role="status" className="rounded-none border-x-0 border-t-0">
           <EyeOffIcon />
           <AlertDescription className="text-foreground">
             非公開です（あなたにだけ表示されています）

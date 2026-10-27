@@ -42,7 +42,7 @@ export default async function StorePage({ params }: Props) {
     <div style={{ "--store-color": store.themeColor } as React.CSSProperties}>
       <SiteHeader path={`/s/${store.slug}`} />
       {isOwnerPreview && (
-        <Alert className="rounded-none border-x-0 border-t-0">
+        <Alert role="status" className="rounded-none border-x-0 border-t-0">
           <EyeOffIcon />
           <AlertDescription className="text-foreground flex flex-wrap items-center justify-between gap-2">
             <span>非公開です（あなたにだけ表示されています）</span>

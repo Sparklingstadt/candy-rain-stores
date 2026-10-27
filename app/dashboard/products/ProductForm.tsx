@@ -95,6 +95,7 @@ export function ProductForm({ product }: { product?: Existing }) {
               id="product-description"
               name="description"
               rows={5}
+              className="min-h-28"
               defaultValue={values?.description ?? product?.description ?? ""}
               aria-invalid={errors.description ? true : undefined}
             />
