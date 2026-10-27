@@ -1,16 +1,15 @@
 import Link from "next/link"
 import { SignOutButton } from "@/app/components/SignOutButton"
-import { getImageStorage } from "@/lib/imageStorage"
-import { prisma } from "@/lib/prisma"
 import { requireSub } from "@/lib/session"
 import { getOwnStore } from "@/services/storeService"
 import { setPublishedAction } from "./actions"
+import { deps } from "./deps"
 import { DeleteStoreForm } from "./DeleteStoreForm"
 import { StoreForm } from "./StoreForm"
 
 export default async function DashboardPage() {
   const sub = await requireSub()
-  const store = await getOwnStore({ db: prisma, storage: getImageStorage() }, sub)
+  const store = await getOwnStore(deps(), sub)
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4">
@@ -38,6 +37,9 @@ export default async function DashboardPage() {
               </form>
               <Link href={`/s/${store.slug}`} className="text-blue-700 underline">
                 ストアページを見る
+              </Link>
+              <Link href="/dashboard/products" className="text-blue-700 underline">
+                商品を管理
               </Link>
             </div>
           </section>

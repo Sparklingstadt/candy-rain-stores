@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { getImageStorage } from "@/lib/imageStorage"
 import { prisma } from "@/lib/prisma"
 import { requireSub } from "@/lib/session"
 import { validateSlug, validateStoreFields, type FieldErrors } from "@/lib/storeValidation"
@@ -13,6 +12,7 @@ import {
   updateStore,
   type ImageInput,
 } from "@/services/storeService"
+import { deps } from "./deps"
 import { readImageField } from "./formImage"
 
 export type StoreFormState = {
@@ -23,10 +23,6 @@ export type StoreFormState = {
 }
 
 const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
-
-function deps() {
-  return { db: prisma, storage: getImageStorage() }
-}
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name)
