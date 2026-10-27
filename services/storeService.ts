@@ -24,7 +24,7 @@ export type UpdateResult =
 
 const SLUG_TAKEN = "このストア ID はすでに使われています"
 
-function toView(storage: ImageStorage, store: Store): StoreView {
+export function toView(storage: ImageStorage, store: Store): StoreView {
   return {
     ...store,
     logoUrl: store.logoPath ? storage.publicUrl(store.logoPath) : null,
