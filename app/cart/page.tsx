@@ -4,6 +4,7 @@ import { deps } from "@/app/dashboard/deps"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { formatPrice } from "@/lib/formatPrice"
 import { requireBuyer } from "@/lib/session"
+import { showChangedNotice } from "@/lib/cartNotice"
 import { getCart, type CartLine } from "@/services/cartService"
 import { CartLineControls } from "./CartLineControls"
 
@@ -22,9 +23,13 @@ function problemText(line: CartLine): string | null {
   }
 }
 
-export default async function CartPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function CartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[]; v?: string | string[] }>
+}) {
   const buyer = await requireBuyer("/cart")
-  const { error } = await searchParams
+  const params = await searchParams
   const cart = await getCart(deps(), buyer.sub)
 
   return (
@@ -32,7 +37,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
       <SiteHeader path="/cart" />
       <main className="mx-auto max-w-2xl space-y-6 p-4">
         <h1 className="text-2xl font-bold">カート</h1>
-        {error === "changed" && (
+        {showChangedNotice(params, cart) && (
           <p role="alert" className="text-red-700">
             在庫や公開状態が変わったため、注文を確定できませんでした
           </p>
