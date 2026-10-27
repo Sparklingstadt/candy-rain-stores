@@ -29,7 +29,7 @@ export async function SiteHeader({ path }: { path: string }) {
             </Link>
           </Button>
           {buyer ? (
-            <UserMenu label={buyer.name.trim() || buyer.email} />
+            <UserMenu name={buyer.name.trim()} email={buyer.email} image={buyer.image} />
           ) : (
             <>
               <Button asChild variant="ghost" size="sm">
