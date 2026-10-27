@@ -16,9 +16,11 @@ type Props = {
   signedIn: boolean
   stock: number
   isOwnStore: boolean
+  // text color readable on the store's theme color
+  onAccent: string
 }
 
-export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: Props) {
+export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore, onAccent }: Props) {
   const router = useRouter()
   const [state, action, pending] = useActionState<AddToCartState, FormData>(
     addToCartAction.bind(null, productId),
@@ -37,7 +39,7 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: 
   if (view === "own_store") return <p className="text-muted-foreground text-sm">自分のストアの商品は購入できません</p>
   if (view === "sold_out") {
     return (
-      <Button type="button" variant="outline" disabled>
+      <Button type="button" variant="outline" disabled className="h-11 w-full rounded-[10px]">
         売り切れ
       </Button>
     )
@@ -45,17 +47,23 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: 
   if (view === "sign_in") {
     return (
       <form action={signInToBuyAction.bind(null, path)}>
-        <Button type="submit">ログインしてカートに入れる</Button>
+        <Button
+          type="submit"
+          className="h-11 w-full rounded-[10px] bg-(--store-color) font-semibold hover:bg-(--store-color)/90"
+          style={{ color: onAccent }}
+        >
+          ログインしてカートに入れる
+        </Button>
       </form>
     )
   }
 
   return (
     <form action={action} className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Label>
-          数量{" "}
-          <NativeSelect name="quantity" defaultValue="1">
+      <div className="flex flex-wrap items-end gap-3">
+        <Label className="flex-col items-start gap-1.5 text-[13px]">
+          数量
+          <NativeSelect name="quantity" defaultValue="1" className="h-11 min-w-22 rounded-[10px]">
             {Array.from({ length: MAX_QUANTITY }, (_, i) => i + 1).map((n) => (
               <NativeSelectOption key={n} value={n}>
                 {n}
@@ -63,7 +71,12 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore }: 
             ))}
           </NativeSelect>
         </Label>
-        <Button type="submit" disabled={pending}>
+        <Button
+          type="submit"
+          disabled={pending}
+          className="h-11 flex-[1_1_180px] rounded-[10px] bg-(--store-color) font-semibold hover:bg-(--store-color)/90"
+          style={{ color: onAccent }}
+        >
           カートに入れる
         </Button>
       </div>
