@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState, useSyncExternalStore } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -70,18 +70,19 @@ export function StoreForm({ store }: { store?: Existing }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="rounded-3xl shadow-none">
+      <CardHeader className="border-b pb-6">
         <CardTitle>
-          <h2 className="text-lg font-bold">{editing ? "ストアを編集" : "ストアを作成"}</h2>
+          <h2 className="text-lg font-semibold">{editing ? "ストアを編集" : "ストアを作成"}</h2>
         </CardTitle>
+        <CardDescription className="leading-7">{editing ? "紹介文や写真で、お店の空気を伝えましょう。" : "まずはお店の名前から。紹介文や画像はあとから整えられます。"}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="space-y-4">
+        <form action={action} className="grid items-start gap-6 md:grid-cols-2">
           {editing ? (
             <div className="grid gap-2 text-sm">
               <span className="font-medium">ストア ID</span>
-              <p className="font-mono">{store.slug}</p>
+              <p className="bg-secondary/30 flex min-h-10 items-center rounded-xl px-3 font-mono">{store.slug}</p>
             </div>
           ) : (
             <div className="grid gap-2">
@@ -113,7 +114,7 @@ export function StoreForm({ store }: { store?: Existing }) {
             <FieldError message={errors.name} />
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 md:col-span-2">
             <Label htmlFor="store-description">説明文</Label>
             <Textarea
               id="store-description"
@@ -126,7 +127,7 @@ export function StoreForm({ store }: { store?: Existing }) {
             <FieldError message={errors.description} />
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 md:col-span-2">
             <Label htmlFor="store-themeColor">テーマカラー</Label>
             <Input
               id="store-themeColor"
@@ -136,10 +137,11 @@ export function StoreForm({ store }: { store?: Existing }) {
               className="h-10 w-20 cursor-pointer p-1"
               aria-invalid={errors.themeColor ? true : undefined}
             />
+            <p className="text-muted-foreground text-xs leading-6">ストアページのアクセントに使う色です。</p>
             <FieldError message={errors.themeColor} />
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 md:col-span-2">
             <Label htmlFor="store-paymentInstructions">お支払い方法の案内</Label>
             <Textarea
               id="store-paymentInstructions"
@@ -165,8 +167,9 @@ export function StoreForm({ store }: { store?: Existing }) {
               accept="image/png,image/jpeg,image/webp"
               aria-invalid={fileErrors.logo ?? errors.logo ? true : undefined}
             />
+            <p className="text-muted-foreground text-xs">PNG・JPEG・WebP / 2MB 以下</p>
             {store?.logoUrl && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={store.logoUrl} alt="現在のロゴ" className="h-16 w-16 rounded-md border object-cover" />
                 <Label className="font-normal">
@@ -188,8 +191,9 @@ export function StoreForm({ store }: { store?: Existing }) {
               accept="image/png,image/jpeg,image/webp"
               aria-invalid={fileErrors.header ?? errors.header ? true : undefined}
             />
+            <p className="text-muted-foreground text-xs">PNG・JPEG・WebP / 2MB 以下</p>
             {store?.headerUrl && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={store.headerUrl}
@@ -206,19 +210,16 @@ export function StoreForm({ store }: { store?: Existing }) {
           </div>
 
           {state.message && (
-            <p role="alert" className="text-destructive text-sm">
+            <p role="alert" className="text-destructive text-sm md:col-span-2">
               {state.message}
             </p>
           )}
 
-          <Button
-            type="submit"
-            disabled={pending}
-            className="text-white hover:opacity-90"
-            style={{ backgroundColor: store?.themeColor ?? DEFAULT_THEME_COLOR }}
-          >
-            {editing ? "保存する" : "作成する"}
-          </Button>
+          <div className="border-t pt-6 md:col-span-2">
+            <Button type="submit" disabled={pending} className="min-h-11 rounded-full px-8">
+              {editing ? "保存する" : "作成する"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
