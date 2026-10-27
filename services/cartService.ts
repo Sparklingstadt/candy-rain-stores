@@ -21,6 +21,7 @@ export type CartGroup = {
   storeName: string
   storeSlug: string
   storePublished: boolean // 非公開のストアや商品にはリンクしない（404 になり slug も見せてしまう）
+  paymentInstructions: string | null
   lines: CartLine[]
   subtotal: number
 }
@@ -33,9 +34,11 @@ export type CartView = {
   version: string
 }
 // capped: すでに 1 商品の上限 (MAX_QUANTITY) まで入っていて、何も増えなかった
+// insufficient_stock: カートの数と合わせると在庫を超える。inCart はすでに入っている数、available はあと入れられる数
 export type AddToCartResult =
   | { ok: true; capped?: true }
   | { ok: false; code: "not_found" | "own_store" | "cart_full" | "invalid_quantity" }
+  | { ok: false; code: "insufficient_stock"; inCart: number; available: number }
 
 // カートの行・数量・単価から作る版。どれかが変われば変わる（在庫や公開状態は lineProblem で見る）
 export function cartVersion(lines: { itemId: string; quantity: number; unitPrice: number }[]): string {
@@ -101,6 +104,7 @@ export async function getCart(deps: StoreDeps, buyerSub: string): Promise<CartVi
         storeName: product.store.name,
         storeSlug: product.store.slug,
         storePublished: product.store.isPublished,
+        paymentInstructions: product.store.paymentInstructions,
         lines: [],
         subtotal: 0,
       }
@@ -138,7 +142,7 @@ export async function addToCart(
 
     const product = await tx.product.findUnique({
       where: { id: productId },
-      select: { isPublished: true, store: { select: { isPublished: true, ownerSub: true } } },
+      select: { isPublished: true, stock: true, store: { select: { isPublished: true, ownerSub: true } } },
     })
     if (!product || !product.isPublished || !product.store.isPublished) {
       return { ok: false, code: "not_found" } as const
@@ -149,8 +153,18 @@ export async function addToCart(
       where: { buyerSub_productId: { buyerSub, productId } },
       select: { id: true, quantity: true },
     })
+    const inCart = existing?.quantity ?? 0
+    if (inCart >= MAX_QUANTITY) return { ok: true, capped: true } as const
+    // 在庫を超える分はカートに入れない（注文確定のときにも在庫は確かめる）
+    if (inCart + qty > product.stock) {
+      return {
+        ok: false,
+        code: "insufficient_stock",
+        inCart,
+        available: Math.max(0, product.stock - inCart),
+      } as const
+    }
     if (existing) {
-      if (existing.quantity >= MAX_QUANTITY) return { ok: true, capped: true } as const
       await tx.cartItem.update({
         where: { id: existing.id },
         data: { quantity: Math.min(existing.quantity + qty, MAX_QUANTITY) },
@@ -176,11 +190,15 @@ export async function setCartQuantity(
   return deps.db.$transaction(async (tx) => {
     // 注文確定がカートを読んでから空にするまでの間に書き込まない
     await lockCart(tx, buyerSub)
-    const { count } = await tx.cartItem.updateMany({
+    const item = await tx.cartItem.findFirst({
       where: { id: itemId, buyerSub },
-      data: { quantity: qty },
+      select: { quantity: true, product: { select: { stock: true } } },
     })
-    return count > 0
+    if (!item) return false
+    // 在庫を超えて増やさない（在庫が減ったあとに減らすのはよい）
+    if (qty > item.product.stock && qty > item.quantity) return false
+    await tx.cartItem.update({ where: { id: itemId }, data: { quantity: qty } })
+    return true
   })
 }
 

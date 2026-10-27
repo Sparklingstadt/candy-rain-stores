@@ -67,12 +67,45 @@ describe("addToCart", () => {
   })
 
   it("caps 7 + 5 at 10 and reports capped when nothing more was added", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    const p = await makeProduct((await makeStore()).id, { stock: 20 })
     await addToCart(deps, BUYER, p.id, 7)
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 5), { ok: true })
     assert.equal(await countCartItems(deps, BUYER), 10)
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: true, capped: true })
     assert.equal(await countCartItems(deps, BUYER), 10)
+  })
+
+  it("refuses to go over the stock and reports how many more fit", async () => {
+    const p = await makeProduct((await makeStore()).id, { stock: 3 })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 4), {
+      ok: false,
+      code: "insufficient_stock",
+      inCart: 0,
+      available: 3,
+    })
+    assert.equal(await rowCount(), 0)
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 2), { ok: true })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 2), {
+      ok: false,
+      code: "insufficient_stock",
+      inCart: 2,
+      available: 1,
+    })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: true })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), {
+      ok: false,
+      code: "insufficient_stock",
+      inCart: 3,
+      available: 0,
+    })
+    assert.equal(await countCartItems(deps, BUYER), 3)
+  })
+
+  it("lets only the stock's worth of concurrent adds in", async () => {
+    const p = await makeProduct((await makeStore()).id, { stock: 2 })
+    const results = await Promise.all([1, 2, 3].map(() => addToCart(deps, BUYER, p.id, 1)))
+    assert.equal(results.filter((r) => r.ok).length, 2)
+    assert.equal(await countCartItems(deps, BUYER), 2)
   })
 
   it("rejects invalid quantities without changing the cart", async () => {
@@ -144,8 +177,9 @@ describe("getCart", () => {
     })
     await addToCart(deps, BUYER, a.id, 2)
     await addToCart(deps, BUYER, b.id, 1)
-    await addToCart(deps, BUYER, c.id, 3) // stock 2 < 3
+    await addToCart(deps, BUYER, c.id, 2)
     await addToCart(deps, BUYER, d.id, 4)
+    await prisma.cartItem.updateMany({ where: { productId: c.id }, data: { quantity: 3 } }) // stock 2 < 3
     await prisma.product.update({ where: { id: d.id }, data: { isPublished: false } })
 
     const cart = await getCart(deps, BUYER)
@@ -239,7 +273,7 @@ describe("lineProblem", () => {
 
 describe("setCartQuantity / removeFromCart", () => {
   async function seed() {
-    const p = await makeProduct((await makeStore()).id)
+    const p = await makeProduct((await makeStore()).id, { stock: 9 })
     await addToCart(deps, BUYER, p.id, 2)
     return prisma.cartItem.findFirstOrThrow({ where: { buyerSub: BUYER } })
   }
@@ -251,6 +285,17 @@ describe("setCartQuantity / removeFromCart", () => {
     assert.equal(await setCartQuantity(deps, BUYER, item.id, "11"), false)
     assert.equal(await setCartQuantity(deps, BUYER, item.id, 0), false)
     assert.equal(await countCartItems(deps, BUYER), 7)
+  })
+
+  it("refuses to raise the quantity over the stock but allows lowering it", async () => {
+    const item = await seed()
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 10), false)
+    assert.equal(await countCartItems(deps, BUYER), 2)
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 9), true)
+    await prisma.product.update({ where: { id: item.productId }, data: { stock: 4 } })
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 6), true) // 9 → 6: still over, but lower
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 7), false)
+    assert.equal(await countCartItems(deps, BUYER), 6)
   })
 
   it("refuses other buyers' rows and malformed ids", async () => {

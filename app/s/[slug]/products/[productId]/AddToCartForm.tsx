@@ -64,7 +64,7 @@ export function AddToCartForm({ productId, path, signedIn, stock, isOwnStore, on
         <Label className="flex-col items-start gap-1.5 text-[13px]">
           数量
           <NativeSelect name="quantity" defaultValue="1" className="h-11 min-w-22 rounded-[10px]">
-            {Array.from({ length: MAX_QUANTITY }, (_, i) => i + 1).map((n) => (
+            {Array.from({ length: Math.min(stock, MAX_QUANTITY) }, (_, i) => i + 1).map((n) => (
               <NativeSelectOption key={n} value={n}>
                 {n}
               </NativeSelectOption>

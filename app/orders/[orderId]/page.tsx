@@ -104,6 +104,31 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <h2 className="text-lg font-bold">変更・キャンセルのお問い合わせ</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-muted-foreground text-sm">
+              注文の変更やキャンセルは、購入者の方からはできません。ストアへ直接ご連絡ください。
+            </p>
+            {store?.contactEmail ? (
+              <p>
+                <a
+                  href={`mailto:${store.contactEmail}?subject=${encodeURIComponent(`注文番号 ${orderNumber(order.id)} について`)}`}
+                  className="underline underline-offset-4"
+                >
+                  {store.contactEmail}
+                </a>
+              </p>
+            ) : (
+              <p>このストアは連絡先を登録していません</p>
+            )}
+          </CardContent>
+        </Card>
+
         <Button asChild variant="outline">
           <Link href="/orders">注文履歴へ戻る</Link>
         </Button>

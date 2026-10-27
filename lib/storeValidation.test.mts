@@ -48,7 +48,13 @@ test("ストア名は trim し、説明が空なら null、色は小文字化す
     validateStoreFields({ name: "  キャンディ屋  ", description: "", themeColor: "#E85D8F" }),
     {
       ok: true,
-      value: { name: "キャンディ屋", description: null, themeColor: "#e85d8f", paymentInstructions: null },
+      value: {
+        name: "キャンディ屋",
+        description: null,
+        themeColor: "#e85d8f",
+        paymentInstructions: null,
+        contactEmail: null,
+      },
     },
   )
 })
@@ -128,4 +134,18 @@ test("お支払い方法の案内は trim し、空なら null、1,000 文字ま
   assert.equal(validateStoreFields({ ...base, paymentInstructions: "あ".repeat(1000) }).ok, true)
   const long = validateStoreFields({ ...base, paymentInstructions: "あ".repeat(1001) })
   assert.ok(!long.ok && long.errors.paymentInstructions)
+})
+
+test("連絡先のメールアドレスは trim し、空なら null、形式と 254 文字までを確かめる", () => {
+  const base = { name: "店", description: "", themeColor: "#e85d8f" }
+  const ok = validateStoreFields({ ...base, contactEmail: "  shop@example.com  " })
+  assert.ok(ok.ok && ok.value.contactEmail === "shop@example.com")
+  const blank = validateStoreFields({ ...base, contactEmail: "   " })
+  assert.ok(blank.ok && blank.value.contactEmail === null)
+  for (const bad of ["shop", "shop@", "@example.com", "shop@example", "a b@example.com"]) {
+    const r = validateStoreFields({ ...base, contactEmail: bad })
+    assert.ok(!r.ok && r.errors.contactEmail, bad)
+  }
+  const long = validateStoreFields({ ...base, contactEmail: "a".repeat(243) + "@example.com" })
+  assert.ok(!long.ok && long.errors.contactEmail)
 })

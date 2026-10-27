@@ -441,16 +441,21 @@ describe("reads", () => {
     assert.ok(await getBuyerOrder(deps, OTHER.sub, others.orderId))
   })
 
-  it("gets the store's slug and published state with the buyer's order", async () => {
+  it("gets the store's slug, published state and current contact with the buyer's order", async () => {
     const { store, orderId } = await orderOne()
     assert.deepEqual((await getBuyerOrder(deps, BUYER.sub, orderId))?.store, {
       slug: store.slug,
       isPublished: true,
+      contactEmail: null,
     })
-    await prisma.store.update({ where: { id: store.id }, data: { isPublished: false } })
+    await prisma.store.update({
+      where: { id: store.id },
+      data: { isPublished: false, contactEmail: "shop@example.com" },
+    })
     assert.deepEqual((await getBuyerOrder(deps, BUYER.sub, orderId))?.store, {
       slug: store.slug,
       isPublished: false,
+      contactEmail: "shop@example.com",
     })
     await changeOrderStatusAsOwner(deps, store.ownerSub, orderId, "CANCELED")
     assert.equal((await deleteStore(deps, store.ownerSub, store.slug)).ok, true)

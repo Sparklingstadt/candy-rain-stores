@@ -42,6 +42,7 @@ export default async function DashboardPage() {
           description: store.description,
           themeColor: store.themeColor,
           paymentInstructions: store.paymentInstructions,
+          contactEmail: store.contactEmail,
           logoUrl: store.logoUrl,
           headerUrl: store.headerUrl,
         }}

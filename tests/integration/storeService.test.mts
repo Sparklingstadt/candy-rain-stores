@@ -106,6 +106,14 @@ describe("updateStore", () => {
     assert.equal(after.name, "あめ屋")
   })
 
+  it("saves and clears the contact email", async () => {
+    await create("a", "shop-a")
+    const set = await updateStore(deps, "a", { ...upd, fields: { ...upd.fields, contactEmail: "shop@example.com" } })
+    assert.ok(set.ok && set.store.contactEmail === "shop@example.com")
+    const cleared = await updateStore(deps, "a", { ...upd, fields: { ...upd.fields, contactEmail: null } })
+    assert.ok(cleared.ok && cleared.store.contactEmail === null)
+  })
+
   it("replaces the logo and removes the old file", async () => {
     const a = await create("a", "shop-a", png(1))
     const r = await updateStore(deps, "a", { ...upd, logo: png(2) })
