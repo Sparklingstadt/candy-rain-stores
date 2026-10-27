@@ -44,9 +44,13 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
             {cart.groups.map((group) => (
               <section key={group.storeId} className="space-y-3">
                 <h2 className="text-lg font-bold">
-                  <Link href={`/s/${group.storeSlug}`} className="underline">
-                    {group.storeName}
-                  </Link>
+                  {group.storePublished ? (
+                    <Link href={`/s/${group.storeSlug}`} className="underline">
+                      {group.storeName}
+                    </Link>
+                  ) : (
+                    group.storeName
+                  )}
                 </h2>
                 <ul className="space-y-3">
                   {group.lines.map((line) => {
@@ -60,12 +64,16 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
                           <div className="h-16 w-16 rounded bg-gray-200" />
                         )}
                         <div className="flex-1 space-y-1">
-                          <Link
-                            href={`/s/${group.storeSlug}/products/${line.productId}`}
-                            className="font-bold underline"
-                          >
-                            {line.productName}
-                          </Link>
+                          {group.storePublished && line.productPublished ? (
+                            <Link
+                              href={`/s/${group.storeSlug}/products/${line.productId}`}
+                              className="font-bold underline"
+                            >
+                              {line.productName}
+                            </Link>
+                          ) : (
+                            <span className="font-bold">{line.productName}</span>
+                          )}
                           <p>{formatPrice(line.unitPrice)}</p>
                           {problem && (
                             <p role="alert" className="text-red-700">

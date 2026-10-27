@@ -13,12 +13,14 @@ export type CartLine = {
   quantity: number
   stock: number
   imageUrl: string | null
+  productPublished: boolean
   problem: CartLineProblem | null
 }
 export type CartGroup = {
   storeId: string
   storeName: string
   storeSlug: string
+  storePublished: boolean // 非公開のストアや商品にはリンクしない（404 になり slug も見せてしまう）
   lines: CartLine[]
   subtotal: number
 }
@@ -88,6 +90,7 @@ export async function getCart(deps: StoreDeps, buyerSub: string): Promise<CartVi
       quantity: item.quantity,
       stock: product.stock,
       imageUrl: image ? deps.storage.publicUrl(image.path) : null,
+      productPublished: product.isPublished,
       problem,
     }
     let group = groups.get(product.storeId)
@@ -96,6 +99,7 @@ export async function getCart(deps: StoreDeps, buyerSub: string): Promise<CartVi
         storeId: product.store.id,
         storeName: product.store.name,
         storeSlug: product.store.slug,
+        storePublished: product.store.isPublished,
         lines: [],
         subtotal: 0,
       }

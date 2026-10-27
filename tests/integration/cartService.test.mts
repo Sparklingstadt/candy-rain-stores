@@ -177,6 +177,22 @@ describe("getCart", () => {
     assert.equal(cart.hasProblems, true)
   })
 
+  it("reports whether stores and products are published so the page can avoid dead links", async () => {
+    const s1 = await makeStore()
+    const s2 = await makeStore()
+    const a = await makeProduct(s1.id, { name: "A" })
+    const b = await makeProduct(s1.id, { name: "B" })
+    const c = await makeProduct(s2.id, { name: "C" })
+    for (const p of [a, b, c]) await addToCart(deps, BUYER, p.id, 1)
+    await prisma.product.update({ where: { id: b.id }, data: { isPublished: false } })
+    await prisma.store.update({ where: { id: s2.id }, data: { isPublished: false } })
+    const [g1, g2] = (await getCart(deps, BUYER)).groups
+    assert.equal(g1.storePublished, true)
+    assert.deepEqual(g1.lines.map((l) => l.productPublished), [true, false])
+    assert.equal(g2.storePublished, false)
+    assert.deepEqual(g2.lines.map((l) => l.productPublished), [true])
+  })
+
   it("does not show other buyers' items", async () => {
     const p = await makeProduct((await makeStore()).id)
     await addToCart(deps, OTHER, p.id, 2)
