@@ -24,7 +24,7 @@ export type UpdateResult =
 
 const SLUG_TAKEN = "このストア ID はすでに使われています"
 
-function toView(storage: ImageStorage, store: Store): StoreView {
+export function toView(storage: ImageStorage, store: Store): StoreView {
   return {
     ...store,
     logoUrl: store.logoPath ? storage.publicUrl(store.logoPath) : null,
@@ -49,7 +49,7 @@ async function putImage(
   return path
 }
 
-async function removeQuietly(storage: ImageStorage, paths: (string | null)[]): Promise<void> {
+export async function removeQuietly(storage: ImageStorage, paths: (string | null)[]): Promise<void> {
   const list = paths.filter((p): p is string => p !== null)
   if (list.length === 0) return
   try {
@@ -184,7 +184,12 @@ export async function deleteStore(
   if (!store) return { ok: false, code: "not_found" }
   if (normalizeSlug(confirmSlug) !== store.slug) return { ok: false, code: "confirm_mismatch" }
 
+  // Product rows (and their image rows) cascade with the store, so collect the file paths first.
+  const productImages = await deps.db.productImage.findMany({
+    where: { product: { storeId: store.id } },
+    select: { path: true },
+  })
   await deps.db.store.deleteMany({ where: { id: store.id, ownerSub } })
-  await removeQuietly(deps.storage, [store.logoPath, store.headerPath])
+  await removeQuietly(deps.storage, [store.logoPath, store.headerPath, ...productImages.map((i) => i.path)])
   return { ok: true }
 }

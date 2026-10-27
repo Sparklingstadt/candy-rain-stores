@@ -7,7 +7,7 @@ export default async function globalSetup() {
   const client = new Client({ connectionString })
   await client.connect()
   try {
-    await client.query('TRUNCATE TABLE "Store"')
+    await client.query('TRUNCATE TABLE "Store" CASCADE')
   } finally {
     await client.end()
   }

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import { login } from "./helpers"
 
 const STORE_NAME = "E2E キャンディ"
 const SLUG = "e2e-candy"
@@ -6,13 +7,7 @@ const DESCRIPTION = "E2E で作ったストアです"
 
 test("ストアを作って公開し、削除する", async ({ page, browser, baseURL }) => {
   // login via Candy Rain ID
-  await page.goto("/")
-  await page.getByRole("button", { name: "Candy Rain ID でログイン" }).click()
-  await page.locator('input[name="email"]').fill("user1@mail.com")
-  await page.locator('input[name="password"]').fill("demo-password")
-  await page.getByRole("button", { name: "サインイン" }).click()
-  await expect(page).toHaveURL(`${baseURL}/dashboard`)
-  await expect(page.getByRole("heading", { name: "ストアを作成" })).toBeVisible()
+  await login(page, baseURL)
 
   // oversized logo: rejected in the browser without submitting, field cleared
   await page.getByLabel("ロゴ画像").setInputFiles({

@@ -4,6 +4,8 @@ Candy Rain ID を持つユーザーが自由にストアを運営できるサー
 
 [Candy Rain ID](https://github.com/Sparklingstadt/candy-rain-identity-server)（OpenID Connect）でログインし、自分のストアを作成・編集・公開・削除できます。公開したストアは `/s/<ストア ID>` で閲覧できます。
 
+ダッシュボードの「商品を管理」から商品（名前・価格・在庫・説明文・画像）を登録できます。公開した商品はストアページの一覧と `/s/<ストア ID>/products/<商品 ID>` の詳細ページに表示され、在庫が 0 のときは「売り切れ」になります。
+
 ## ローカルで動かす
 
 必要なもの: Node.js、PostgreSQL、Candy Rain ID（candy-rain-identity-server）。
@@ -49,7 +51,12 @@ npm run test:e2e          # Playwright による E2E テスト
 
 ### E2E テスト
 
-E2E は 3118 番ポートでアプリをビルド・起動し、ストアの作成から削除までを実ブラウザで通します。実行前に次を用意してください。
+E2E は 3118 番ポートでアプリをビルド・起動し、実ブラウザで次の 2 つの流れを通します（画像は `IMAGE_STORAGE=memory` で保存されるため、画像の検証は枚数と並び順のみです）。
+
+- `e2e/store.spec.ts`: ストアの作成・公開・削除、ログアウト
+- `e2e/products.spec.ts`: 商品の作成、画像 2 枚の追加と並べ替え、公開、未ログインでの閲覧（価格・在庫・売り切れ表示）、削除後の 404、ストアの削除
+
+実行前に次を用意してください。
 
 1. candy-rain-identity-server を `http://localhost:8080` で起動し、`OIDC_CLIENTS` に次を登録します
    - クライアント `id`: `candy-rain-stores` / `secret`: `stores-secret`

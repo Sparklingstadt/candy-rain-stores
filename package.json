@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "prisma generate && next typegen && tsc --noEmit",
     "test": "tsx --test lib/*.test.mts tests/*.test.mts",
-    "test:integration": "tsx --conditions=react-server --test tests/integration/*.test.mts",
+    "test:integration": "tsx --conditions=react-server --test --test-concurrency=1 tests/integration/*.test.mts",
     "db:migrate": "prisma migrate deploy",
     "test:e2e": "playwright test"
   },
