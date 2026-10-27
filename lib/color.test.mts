@@ -9,6 +9,12 @@ test("明るい背景には黒、暗い背景には白を返す", () => {
   assert.equal(readableTextColor("#fde047"), "#000000")
 })
 
+test("中くらいの明るさにはコントラストの高い方を返す", () => {
+  assert.equal(readableTextColor("#f97316"), "#000000")
+  assert.equal(readableTextColor("#22c55e"), "#000000")
+  assert.equal(readableTextColor("#2563eb"), "#ffffff")
+})
+
 test("3 桁の指定も扱う", () => {
   assert.equal(readableTextColor("#fff"), "#000000")
   assert.equal(readableTextColor("#000"), "#ffffff")

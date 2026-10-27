@@ -79,10 +79,12 @@ export default async function StorePage({ params, searchParams }: Props) {
   const filter = parseFilter(query.filter)
   const sort = parseSort(query.sort)
 
-  const availableCount = products.filter((p) => p.stock > 0).length
-  const soldOutCount = products.length - availableCount
+  // Counts and the 販売中/売り切れ tabs cover published products only, so the owner sees the buyers' numbers.
+  const published = products.filter((p) => p.isPublished)
+  const availableCount = published.filter((p) => p.stock > 0).length
+  const soldOutCount = published.length - availableCount
   const visible = products
-    .filter((p) => (filter === "available" ? p.stock > 0 : filter === "soldout" ? p.stock === 0 : true))
+    .filter((p) => (filter === "available" ? p.isPublished && p.stock > 0 : filter === "soldout" ? p.isPublished && p.stock === 0 : true))
     // Array.prototype.sort is stable, so equal prices keep the newest-first order
     .sort((a, b) => (sort === "price" ? a.price - b.price : 0))
 
@@ -129,7 +131,7 @@ export default async function StorePage({ params, searchParams }: Props) {
           <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-1.5 pb-2 min-[492px]:pt-14 md:pt-[72px]">
             <h1 className="text-2xl leading-tight font-bold wrap-anywhere md:text-3xl">{store.name}</h1>
             <p className="text-muted-foreground text-sm">
-              /s/{store.slug}・商品 {products.length} 点
+              /s/{store.slug}・商品 {published.length} 点
             </p>
           </div>
           <div className="self-end pb-2">
