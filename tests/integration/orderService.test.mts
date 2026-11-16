@@ -90,6 +90,25 @@ async function orderOne(buyer = BUYER, o: { stock?: number; qty?: number } = {})
   return { store, product, orderId: r.orderIds[0] }
 }
 
+// Rows made in the same millisecond would tie on createdAt and fall back to random ids,
+// so tests that assert an order give each row a distinct createdAt in the order given.
+const PINNED_BASE = Date.UTC(2026, 0, 1)
+
+async function pinCartOrder(buyerSub: string, productIds: string[]) {
+  for (const [i, productId] of productIds.entries()) {
+    await prisma.cartItem.updateMany({
+      where: { buyerSub, productId },
+      data: { createdAt: new Date(PINNED_BASE + i * 1000) },
+    })
+  }
+}
+
+async function pinOrderTimes(orderIds: string[]) {
+  for (const [i, id] of orderIds.entries()) {
+    await prisma.order.update({ where: { id }, data: { createdAt: new Date(PINNED_BASE + i * 1000) } })
+  }
+}
+
 describe("placeOrder", () => {
   it("creates one order per store with snapshots, decrements stock and empties the cart", async () => {
     const s1 = await makeStore({ name: "店1", paymentInstructions: "銀行振込でお願いします" })
@@ -100,6 +119,7 @@ describe("placeOrder", () => {
     await add(BUYER, a.id, 2)
     await add(BUYER, b.id, 1)
     await add(BUYER, c.id, 3)
+    await pinCartOrder(BUYER.sub, [a.id, b.id, c.id])
 
     const r = await place(BUYER)
     assert.equal(r.ok, true)
@@ -431,6 +451,7 @@ describe("reads", () => {
     const first = await orderOne()
     const second = await orderOne()
     const others = await orderOne(OTHER)
+    await pinOrderTimes([first.orderId, second.orderId, others.orderId])
     const list = await listBuyerOrders(deps, BUYER.sub)
     assert.deepEqual(
       list.map((o) => o.id),
@@ -476,6 +497,7 @@ describe("reads", () => {
       ids.push(r.orderIds[0])
     }
     await orderOne(OTHER) // 別のストアの注文
+    await pinOrderTimes(ids)
     await changeOrderStatusAsOwner(deps, store.ownerSub, ids[1], "PAID")
 
     const all = await listStoreOrders(deps, store.ownerSub)
@@ -531,11 +553,13 @@ describe("reads", () => {
 
   it("returns the shipping of the latest order", async () => {
     assert.equal(await getLastShipping(deps, BUYER.sub), null)
-    await orderOne()
+    const older = await orderOne()
     const p = await makeProduct((await makeStore()).id)
     await add(BUYER, p.id, 1)
     const latest = { postalCode: "987-6543", prefecture: "大阪府", address: "北区2-2", phone: "0612345678" }
-    await place(BUYER, latest)
+    const r = await place(BUYER, latest)
+    if (!r.ok) throw new Error("order failed")
+    await pinOrderTimes([older.orderId, r.orderIds[0]])
     assert.deepEqual(await getLastShipping(deps, BUYER.sub), latest)
     assert.equal(await getLastShipping(deps, OTHER.sub), null)
   })
