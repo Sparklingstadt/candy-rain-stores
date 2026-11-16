@@ -8,11 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/formatPrice"
-import { formatOrderDate, orderNumber } from "@/lib/orderStatus"
+import { formatOrderDate, orderNumber, PAYMENT_DEADLINE_DAYS, paymentDeadline } from "@/lib/orderStatus"
 import { requireBuyer } from "@/lib/session"
 import { getBuyerOrder } from "@/services/orderService"
 import { isUuid } from "@/services/productService"
-import { CancelOrderForm } from "./CancelOrderForm"
 
 export const metadata: Metadata = { title: "注文の詳細" }
 
@@ -52,7 +51,18 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
               <OrderStatusBadge status={order.status} />
             </dd>
           </div>
+          {order.status === "RECEIVED" && (
+            <div>
+              <dt className="inline font-medium">お支払い期限：</dt>
+              <dd className="inline">{formatOrderDate(paymentDeadline(order.createdAt))}</dd>
+            </div>
+          )}
         </dl>
+        {order.status === "RECEIVED" && (
+          <p className="text-muted-foreground text-sm">
+            注文から {PAYMENT_DEADLINE_DAYS} 日たってもストアがお支払いを確認できないときは、注文は自動でキャンセルされます。
+          </p>
+        )}
 
         <Card>
           <CardHeader>
@@ -105,7 +115,31 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
           </CardContent>
         </Card>
 
-        {order.status === "RECEIVED" && <CancelOrderForm orderId={order.id} />}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <h2 className="text-lg font-bold">変更・キャンセルのお問い合わせ</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-muted-foreground text-sm">
+              注文の変更やキャンセルは、購入者の方からはできません。ストアへ直接ご連絡ください。
+            </p>
+            {store?.contactEmail ? (
+              <p>
+                <a
+                  href={`mailto:${store.contactEmail}?subject=${encodeURIComponent(`注文番号 ${orderNumber(order.id)} について`)}`}
+                  className="underline underline-offset-4"
+                >
+                  {store.contactEmail}
+                </a>
+              </p>
+            ) : (
+              <p>このストアは連絡先を登録していません</p>
+            )}
+          </CardContent>
+        </Card>
+
         <Button asChild variant="outline">
           <Link href="/orders">注文履歴へ戻る</Link>
         </Button>

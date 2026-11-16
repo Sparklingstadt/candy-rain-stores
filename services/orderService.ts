@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
-import type { Order, OrderItem } from "../generated/prisma/client"
+import type { Order, OrderItem, Prisma } from "../generated/prisma/client"
 import type { ShippingInfo } from "../lib/orderValidation"
-import { canTransition, ORDER_STATUSES, type OrderStatus } from "../lib/orderStatus"
+import { canTransition, ORDER_STATUSES, PAYMENT_DEADLINE_DAYS, type OrderStatus } from "../lib/orderStatus"
 import { cartVersion, lineProblem, lockCart, type CartLineProblem } from "./cartService"
 import { isUuid } from "./productService"
 import type { StoreDeps } from "./storeService"
@@ -9,7 +9,9 @@ import type { StoreDeps } from "./storeService"
 export type Buyer = { sub: string; name: string; email: string }
 export type OrderView = Order & { items: OrderItem[] } // items は作成順
 // store はストアが削除されていれば null。非公開のストアにはリンクしない
-export type BuyerOrderView = OrderView & { store: { slug: string; isPublished: boolean } | null }
+export type BuyerOrderView = OrderView & {
+  store: { slug: string; isPublished: boolean; contactEmail: string | null } | null
+}
 export type OrderProblem = { productId: string; problem: CartLineProblem; stock: number }
 export type PlaceOrderResult =
   | { ok: true; orderIds: string[] }
@@ -146,7 +148,7 @@ export async function getBuyerOrder(
   if (!isUuid(orderId)) return null
   return deps.db.order.findFirst({
     where: { id: orderId, buyerSub },
-    include: { ...withItems, store: { select: { slug: true, isPublished: true } } },
+    include: { ...withItems, store: { select: { slug: true, isPublished: true, contactEmail: true } } },
   })
 }
 
@@ -204,24 +206,22 @@ export async function getStoreOrder(deps: StoreDeps, ownerSub: string, orderId: 
   return deps.db.order.findFirst({ where: { id: orderId, storeId }, include: withItems })
 }
 
-type Ownership = { storeId: string } | { buyerSub: string }
-
+// scope は変えてよい注文の条件（オーナーなら自分のストア、期限切れなら受付のまま期限を過ぎたもの）
 async function changeStatus(
   deps: StoreDeps,
-  actor: "owner" | "buyer",
-  ownership: Ownership,
+  scope: Prisma.OrderWhereInput,
   orderId: string,
   to: OrderStatus,
 ): Promise<ChangeResult> {
   return deps.db.$transaction(async (tx) => {
-    const order = await tx.order.findFirst({ where: { id: orderId, ...ownership }, select: { status: true } })
+    const order = await tx.order.findFirst({ where: { ...scope, id: orderId }, select: { status: true } })
     if (!order) return { ok: false, code: "not_found" } as const
     const from = order.status
-    if (!canTransition(actor, from, to)) return { ok: false, code: "invalid_transition" } as const
+    if (!canTransition(from, to)) return { ok: false, code: "invalid_transition" } as const
 
     // 読んだ状態のままのときだけ変える。同時に変えられていたら 0 件になる
     const { count } = await tx.order.updateMany({
-      where: { id: orderId, status: from, ...ownership },
+      where: { ...scope, id: orderId, status: from },
       data: { status: to },
     })
     if (count === 0) return { ok: false, code: "conflict" } as const
@@ -253,10 +253,34 @@ export async function changeOrderStatusAsOwner(
   if (!isUuid(orderId)) return { ok: false, code: "not_found" }
   const storeId = await ownStoreId(deps, ownerSub)
   if (!storeId) return { ok: false, code: "not_found" }
-  return changeStatus(deps, "owner", { storeId }, orderId, to)
+  return changeStatus(deps, { storeId }, orderId, to)
 }
 
-export async function cancelOrderAsBuyer(deps: StoreDeps, buyerSub: string, orderId: string): Promise<ChangeResult> {
-  if (!isUuid(orderId)) return { ok: false, code: "not_found" }
-  return changeStatus(deps, "buyer", { buyerSub }, orderId, "CANCELED")
+// 一度に取り消す件数の上限。残りは次の実行で取り消す
+const EXPIRE_BATCH = 200
+
+// 受付のまま支払期限（paymentDeadline）を過ぎた注文をキャンセルし、在庫を戻す。
+// 1 件ずつオーナーのキャンセルと同じ手順で行うので、同時にオーナーが支払確認していれば取り消さない。
+// 取り消した注文の数と、在庫が戻ったストアの slug を返す
+export async function expireUnpaidOrders(
+  deps: StoreDeps,
+  now: Date,
+): Promise<{ canceled: number; storeSlugs: string[] }> {
+  const cutoff = new Date(now.getTime() - PAYMENT_DEADLINE_DAYS * 24 * 60 * 60 * 1000)
+  const scope = { status: "RECEIVED", createdAt: { lt: cutoff } } satisfies Prisma.OrderWhereInput
+  const orders = await deps.db.order.findMany({
+    where: scope,
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: EXPIRE_BATCH,
+    select: { id: true, store: { select: { slug: true } } },
+  })
+  let canceled = 0
+  const storeSlugs = new Set<string>()
+  for (const order of orders) {
+    const result = await changeStatus(deps, scope, order.id, "CANCELED")
+    if (!result.ok) continue
+    canceled++
+    if (order.store) storeSlugs.add(order.store.slug)
+  }
+  return { canceled, storeSlugs: [...storeSlugs] }
 }

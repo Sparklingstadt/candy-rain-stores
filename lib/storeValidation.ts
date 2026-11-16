@@ -3,19 +3,30 @@ import { validatePaymentInstructions } from "./orderValidation"
 export const DEFAULT_THEME_COLOR = "#e85d8f"
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
-export type StoreField = "slug" | "name" | "description" | "themeColor" | "paymentInstructions" | "logo" | "header"
+export type StoreField =
+  | "slug"
+  | "name"
+  | "description"
+  | "themeColor"
+  | "paymentInstructions"
+  | "contactEmail"
+  | "logo"
+  | "header"
 export type FieldErrors = Partial<Record<StoreField, string>>
 export type StoreFields = {
   name: string
   description: string | null
   themeColor: string
   paymentInstructions?: string | null // 省略すると変更しない
+  contactEmail?: string | null // 省略すると変更しない
 }
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/
 const NAME_MAX = 50
 const DESCRIPTION_MAX = 500
+const EMAIL_MAX = 254
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function normalizeSlug(raw: string): string {
   return raw.trim().toLowerCase()
@@ -40,6 +51,7 @@ export function validateStoreFields(raw: {
   description: string
   themeColor: string
   paymentInstructions?: string
+  contactEmail?: string
 }): { ok: true; value: StoreFields } | { ok: false; errors: FieldErrors } {
   const errors: FieldErrors = {}
 
@@ -61,6 +73,12 @@ export function validateStoreFields(raw: {
   const payment = validatePaymentInstructions(raw.paymentInstructions ?? "")
   if (!payment.ok) errors.paymentInstructions = payment.error
 
+  // 購入者が注文の変更やキャンセルを頼むときの連絡先。空なら未設定
+  const contactEmail = (raw.contactEmail ?? "").trim()
+  if (contactEmail !== "" && (contactEmail.length > EMAIL_MAX || !EMAIL_PATTERN.test(contactEmail))) {
+    errors.contactEmail = "連絡先のメールアドレスを正しく入力してください"
+  }
+
   if (Object.keys(errors).length > 0 || !payment.ok) return { ok: false, errors }
   return {
     ok: true,
@@ -69,6 +87,7 @@ export function validateStoreFields(raw: {
       description: description === "" ? null : description,
       themeColor,
       paymentInstructions: payment.value,
+      contactEmail: contactEmail === "" ? null : contactEmail,
     },
   }
 }

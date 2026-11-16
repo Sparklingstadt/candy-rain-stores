@@ -106,6 +106,14 @@ describe("updateStore", () => {
     assert.equal(after.name, "あめ屋")
   })
 
+  it("saves and clears the contact email", async () => {
+    await create("a", "shop-a")
+    const set = await updateStore(deps, "a", { ...upd, fields: { ...upd.fields, contactEmail: "shop@example.com" } })
+    assert.ok(set.ok && set.store.contactEmail === "shop@example.com")
+    const cleared = await updateStore(deps, "a", { ...upd, fields: { ...upd.fields, contactEmail: null } })
+    assert.ok(cleared.ok && cleared.store.contactEmail === null)
+  })
+
   it("replaces the logo and removes the old file", async () => {
     const a = await create("a", "shop-a", png(1))
     const r = await updateStore(deps, "a", { ...upd, logo: png(2) })
@@ -252,6 +260,15 @@ describe("deleteStore with orders", () => {
 })
 
 describe("listPublishedStores", () => {
+  // Rows made in the same millisecond would tie on createdAt and fall back to random ids,
+  // so give each store a distinct createdAt in creation order.
+  async function pinCreatedAt(ids: string[]) {
+    const base = Date.UTC(2026, 0, 1)
+    for (const [i, id] of ids.entries()) {
+      await prisma.store.update({ where: { id }, data: { createdAt: new Date(base + i * 1000) } })
+    }
+  }
+
   async function seed(n: number, opts: { published?: boolean; ownerPrefix?: string } = {}) {
     const base = Date.UTC(2026, 0, 1)
     for (let i = 0; i < n; i++) {
@@ -270,7 +287,8 @@ describe("listPublishedStores", () => {
   it("lists only published stores, newest first, with image URLs resolved like StoreView", async () => {
     const a = await create("a", "shop-a", png())
     const b = await create("b", "shop-b")
-    await create("c", "shop-c")
+    const c = await create("c", "shop-c")
+    await pinCreatedAt([a.id, b.id, c.id])
     await setPublished(deps, "a", true)
     await setPublished(deps, "b", true)
     const r = await listPublishedStores(deps, 1, 24)

@@ -53,7 +53,7 @@ const load = cache(async (params: Props["params"]) => {
     store.id,
     viewerSub !== null && viewerSub === store.ownerSub,
   )
-  return { ...found, products }
+  return { ...found, products, isOwner: viewerSub !== null && viewerSub === store.ownerSub }
 })
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -72,7 +72,7 @@ function tabHref(slug: string, filter: Filter, sort: Sort): string {
 export default async function StorePage({ params, searchParams }: Props) {
   const found = await load(params)
   if (!found) notFound()
-  const { store, isOwnerPreview, products } = found
+  const { store, isOwnerPreview, products, isOwner } = found
   const query = await searchParams
   const filter = parseFilter(query.filter)
   const sort = parseSort(query.sort)

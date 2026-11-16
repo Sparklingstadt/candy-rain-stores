@@ -11,9 +11,10 @@ export async function getSub(): Promise<string | null> {
   return session?.user?.id ?? null
 }
 
+// Signed out: go to the Candy Rain ID login, then come back to the dashboard.
 export async function requireSub(): Promise<string> {
   const sub = await getSub()
-  if (!sub) redirect("/")
+  if (!sub) redirect(`/api/buyer-login?returnTo=${encodeURIComponent("/dashboard")}`)
   return sub
 }
 

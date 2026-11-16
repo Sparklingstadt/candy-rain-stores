@@ -16,20 +16,21 @@ const OWNER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   CANCELED: [],
 }
 
-const BUYER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  RECEIVED: ["CANCELED"],
-  PAID: [],
-  SHIPPED: [],
-  CANCELED: [],
-}
-
-export function canTransition(actor: "owner" | "buyer", from: OrderStatus, to: OrderStatus): boolean {
-  const table = actor === "owner" ? OWNER_TRANSITIONS : BUYER_TRANSITIONS
-  return table[from].includes(to)
+// 注文の状態を変えられるのはストアのオーナーだけ（購入者は自分でキャンセルできない）
+export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
+  return OWNER_TRANSITIONS[from].includes(to)
 }
 
 export function nextOwnerStatuses(from: OrderStatus): OrderStatus[] {
   return [...OWNER_TRANSITIONS[from]]
+}
+
+// 受付のまま支払いが確認されない注文は、この日数を過ぎると自動でキャンセルされ在庫が戻る
+// （支払う気のない注文で在庫を押さえられないようにする）。キャンセルは毎日 1 回まとめて行う
+export const PAYMENT_DEADLINE_DAYS = 7
+
+export function paymentDeadline(createdAt: Date): Date {
+  return new Date(createdAt.getTime() + PAYMENT_DEADLINE_DAYS * 24 * 60 * 60 * 1000)
 }
 
 export function orderNumber(orderId: string): string {

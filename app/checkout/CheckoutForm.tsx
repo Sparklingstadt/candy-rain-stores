@@ -1,11 +1,13 @@
 "use client"
 
 import { useActionState } from "react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { PAYMENT_DEADLINE_DAYS } from "@/lib/orderStatus"
 import { PREFECTURES, type ShippingInfo } from "@/lib/orderValidation"
 import { placeOrderAction, type CheckoutState } from "./actions"
 
@@ -90,6 +92,13 @@ export function CheckoutForm({ initial, cartVersion }: { initial: ShippingInfo; 
               {state.message}
             </p>
           )}
+          <Alert role="note">
+            <AlertTitle>注文の確定後はキャンセルできません</AlertTitle>
+            <AlertDescription>
+              確定した注文は、購入者の方からはキャンセルできません。変更やキャンセルが必要なときは、注文詳細に表示されるストアの連絡先へお問い合わせください。
+              注文から {PAYMENT_DEADLINE_DAYS} 日たってもストアがお支払いを確認できないときは、注文は自動でキャンセルされます。
+            </AlertDescription>
+          </Alert>
           <Button type="submit" disabled={pending}>
             {pending ? "送信中…" : "注文を確定する"}
           </Button>

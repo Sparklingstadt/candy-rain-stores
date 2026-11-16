@@ -101,6 +101,7 @@ export default async function CartPage({
                             <CartLineControls
                               itemId={line.itemId}
                               quantity={line.quantity}
+                              stock={line.stock}
                               name={line.productName}
                             />
                             <p>小計 {formatPrice(line.unitPrice * line.quantity)}</p>

@@ -52,6 +52,15 @@ async function makeProduct(
   })
 }
 
+// Cart lines are shown oldest first. Rows added in the same millisecond would tie on createdAt
+// and fall back to random ids, so give each line a distinct createdAt in the order given.
+async function pinCartOrder(buyerSub: string, productIds: string[]) {
+  const base = Date.UTC(2026, 0, 1)
+  for (const [i, productId] of productIds.entries()) {
+    await prisma.cartItem.updateMany({ where: { buyerSub, productId }, data: { createdAt: new Date(base + i * 1000) } })
+  }
+}
+
 async function rowCount(buyerSub = BUYER) {
   return prisma.cartItem.count({ where: { buyerSub } })
 }
@@ -67,12 +76,45 @@ describe("addToCart", () => {
   })
 
   it("caps 7 + 5 at 10 and reports capped when nothing more was added", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    const p = await makeProduct((await makeStore()).id, { stock: 20 })
     await addToCart(deps, BUYER, p.id, 7)
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 5), { ok: true })
     assert.equal(await countCartItems(deps, BUYER), 10)
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: true, capped: true })
     assert.equal(await countCartItems(deps, BUYER), 10)
+  })
+
+  it("refuses to go over the stock and reports how many more fit", async () => {
+    const p = await makeProduct((await makeStore()).id, { stock: 3 })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 4), {
+      ok: false,
+      code: "insufficient_stock",
+      inCart: 0,
+      available: 3,
+    })
+    assert.equal(await rowCount(), 0)
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 2), { ok: true })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 2), {
+      ok: false,
+      code: "insufficient_stock",
+      inCart: 2,
+      available: 1,
+    })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: true })
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), {
+      ok: false,
+      code: "insufficient_stock",
+      inCart: 3,
+      available: 0,
+    })
+    assert.equal(await countCartItems(deps, BUYER), 3)
+  })
+
+  it("lets only the stock's worth of concurrent adds in", async () => {
+    const p = await makeProduct((await makeStore()).id, { stock: 2 })
+    const results = await Promise.all([1, 2, 3].map(() => addToCart(deps, BUYER, p.id, 1)))
+    assert.equal(results.filter((r) => r.ok).length, 2)
+    assert.equal(await countCartItems(deps, BUYER), 2)
   })
 
   it("rejects invalid quantities without changing the cart", async () => {
@@ -144,8 +186,10 @@ describe("getCart", () => {
     })
     await addToCart(deps, BUYER, a.id, 2)
     await addToCart(deps, BUYER, b.id, 1)
-    await addToCart(deps, BUYER, c.id, 3) // stock 2 < 3
+    await addToCart(deps, BUYER, c.id, 2)
     await addToCart(deps, BUYER, d.id, 4)
+    await pinCartOrder(BUYER, [a.id, b.id, c.id, d.id])
+    await prisma.cartItem.updateMany({ where: { productId: c.id }, data: { quantity: 3 } }) // stock 2 < 3
     await prisma.product.update({ where: { id: d.id }, data: { isPublished: false } })
 
     const cart = await getCart(deps, BUYER)
@@ -184,6 +228,7 @@ describe("getCart", () => {
     const b = await makeProduct(s1.id, { name: "B" })
     const c = await makeProduct(s2.id, { name: "C" })
     for (const p of [a, b, c]) await addToCart(deps, BUYER, p.id, 1)
+    await pinCartOrder(BUYER, [a.id, b.id, c.id])
     await prisma.product.update({ where: { id: b.id }, data: { isPublished: false } })
     await prisma.store.update({ where: { id: s2.id }, data: { isPublished: false } })
     const [g1, g2] = (await getCart(deps, BUYER)).groups
@@ -239,7 +284,7 @@ describe("lineProblem", () => {
 
 describe("setCartQuantity / removeFromCart", () => {
   async function seed() {
-    const p = await makeProduct((await makeStore()).id)
+    const p = await makeProduct((await makeStore()).id, { stock: 9 })
     await addToCart(deps, BUYER, p.id, 2)
     return prisma.cartItem.findFirstOrThrow({ where: { buyerSub: BUYER } })
   }
@@ -251,6 +296,17 @@ describe("setCartQuantity / removeFromCart", () => {
     assert.equal(await setCartQuantity(deps, BUYER, item.id, "11"), false)
     assert.equal(await setCartQuantity(deps, BUYER, item.id, 0), false)
     assert.equal(await countCartItems(deps, BUYER), 7)
+  })
+
+  it("refuses to raise the quantity over the stock but allows lowering it", async () => {
+    const item = await seed()
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 10), false)
+    assert.equal(await countCartItems(deps, BUYER), 2)
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 9), true)
+    await prisma.product.update({ where: { id: item.productId }, data: { stock: 4 } })
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 6), true) // 9 → 6: still over, but lower
+    assert.equal(await setCartQuantity(deps, BUYER, item.id, 7), false)
+    assert.equal(await countCartItems(deps, BUYER), 6)
   })
 
   it("refuses other buyers' rows and malformed ids", async () => {

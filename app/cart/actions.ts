@@ -17,6 +17,12 @@ const MESSAGES = {
   invalid_quantity: "数量を選び直してください",
 } as const
 
+function insufficientStockMessage(inCart: number, available: number): string {
+  if (available > 0) return `在庫が足りません。あと ${available} 点までカートに入れられます`
+  if (inCart > 0) return `在庫の数（${inCart} 点）だけカートに入っています`
+  return "売り切れました"
+}
+
 export async function addToCartAction(
   productId: string,
   _prev: AddToCartState,
@@ -28,7 +34,12 @@ export async function addToCartAction(
   let capped = false
   try {
     const result = await addToCart(deps(), buyer.sub, productId, typeof quantity === "string" ? quantity : "")
-    if (!result.ok) return { message: MESSAGES[result.code] }
+    if (!result.ok) {
+      if (result.code === "insufficient_stock") {
+        return { message: insufficientStockMessage(result.inCart, result.available) }
+      }
+      return { message: MESSAGES[result.code] }
+    }
     capped = result.capped === true
   } catch {
     return { message: SAVE_FAILED }

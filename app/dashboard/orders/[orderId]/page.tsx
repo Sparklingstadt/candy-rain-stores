@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/formatPrice"
-import { formatOrderDate, nextOwnerStatuses, orderNumber } from "@/lib/orderStatus"
+import { formatOrderDate, nextOwnerStatuses, orderNumber, paymentDeadline } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
 import { getStoreOrder } from "@/services/orderService"
 import { isUuid } from "@/services/productService"
@@ -30,6 +30,12 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">注文番号 {orderNumber(order.id)}</h1>
         <p className="text-muted-foreground text-sm">注文日時：{formatOrderDate(order.createdAt)}</p>
+        {order.status === "RECEIVED" && (
+          <p className="text-muted-foreground text-sm">
+            お支払い期限：{formatOrderDate(paymentDeadline(order.createdAt))}
+            （それまでに支払確認しないと、自動でキャンセルされ在庫が戻ります）
+          </p>
+        )}
       </header>
 
       <div className="flex flex-wrap items-start gap-6">
