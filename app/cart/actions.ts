@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { candyRainIdProviderId, signIn } from "@/auth"
+import { SAVE_FAILED } from "@/lib/formData"
 import { deps } from "@/services/deps"
 import { safeReturnTo } from "@/lib/safeReturnTo"
 import { getBuyer, requireBuyer } from "@/lib/session"
@@ -9,7 +10,6 @@ import { addToCart, removeFromCart, setCartQuantity } from "@/services/cartServi
 
 export type AddToCartState = { message?: string; added?: boolean; capped?: boolean }
 
-const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
 const MESSAGES = {
   not_found: "この商品は現在購入できません",
   own_store: "自分のストアの商品は購入できません",

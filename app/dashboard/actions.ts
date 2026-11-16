@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { SAVE_FAILED, text } from "@/lib/formData"
 import { prisma } from "@/lib/prisma"
 import { requireSub } from "@/lib/session"
 import { validateSlug, validateStoreFields, type FieldErrors } from "@/lib/storeValidation"
@@ -27,13 +28,6 @@ export type StoreFormState = {
   }
   message?: string
   saved?: boolean
-}
-
-const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
-
-function text(formData: FormData, name: string): string {
-  const value = formData.get(name)
-  return typeof value === "string" ? value : ""
 }
 
 // Validates everything the service trusts: text fields and both image uploads.

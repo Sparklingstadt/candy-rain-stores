@@ -1,12 +1,12 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { SAVE_FAILED } from "@/lib/formData"
 import { deps } from "@/services/deps"
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
 import { changeOrderStatusAsOwner } from "@/services/orderService"
 
-const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
 const CHANGED = "注文の状態が変わりました。画面を更新してください"
 
 export async function changeOrderStatusAction(
