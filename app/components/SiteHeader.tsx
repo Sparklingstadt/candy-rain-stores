@@ -1,4 +1,6 @@
 import Link from "next/link"
+import { ShoppingBagIcon } from "lucide-react"
+import { Brand } from "./atelier/Brand"
 import { signInToBuyAction } from "@/app/cart/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,15 +16,14 @@ export async function SiteHeader({ path }: { path: string }) {
   const count = buyer ? await countCartItems(deps(), buyer.sub) : 0
   const ownStore = buyer ? await getOwnStore(deps(), buyer.sub) : null
   return (
-    <header className="bg-background border-b text-sm">
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 sm:px-8">
-        <Link href="/stores" className="font-semibold tracking-tight">
-          Candy Rain Stores
-        </Link>
+    <header className="bg-card/80 border-b text-sm">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-5 gap-y-3 px-5 py-4 sm:px-8">
+        <Brand href="/stores" />
         <nav className="flex flex-wrap items-center gap-1">
           <Button asChild variant="ghost" size="sm">
             {/* The parentheses stay in the text (screen readers and copy read "カート（N）"); the badge shows N. */}
             <Link href="/cart">
+              <ShoppingBagIcon aria-hidden="true" className="size-4" />
               カート<span className="sr-only">（</span>
               <Badge variant="secondary" className="min-w-5 tabular-nums">
                 {count}

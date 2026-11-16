@@ -52,6 +52,15 @@ async function makeProduct(
   })
 }
 
+// Cart lines are shown oldest first. Rows added in the same millisecond would tie on createdAt
+// and fall back to random ids, so give each line a distinct createdAt in the order given.
+async function pinCartOrder(buyerSub: string, productIds: string[]) {
+  const base = Date.UTC(2026, 0, 1)
+  for (const [i, productId] of productIds.entries()) {
+    await prisma.cartItem.updateMany({ where: { buyerSub, productId }, data: { createdAt: new Date(base + i * 1000) } })
+  }
+}
+
 async function rowCount(buyerSub = BUYER) {
   return prisma.cartItem.count({ where: { buyerSub } })
 }
@@ -179,6 +188,7 @@ describe("getCart", () => {
     await addToCart(deps, BUYER, b.id, 1)
     await addToCart(deps, BUYER, c.id, 2)
     await addToCart(deps, BUYER, d.id, 4)
+    await pinCartOrder(BUYER, [a.id, b.id, c.id, d.id])
     await prisma.cartItem.updateMany({ where: { productId: c.id }, data: { quantity: 3 } }) // stock 2 < 3
     await prisma.product.update({ where: { id: d.id }, data: { isPublished: false } })
 
@@ -218,6 +228,7 @@ describe("getCart", () => {
     const b = await makeProduct(s1.id, { name: "B" })
     const c = await makeProduct(s2.id, { name: "C" })
     for (const p of [a, b, c]) await addToCart(deps, BUYER, p.id, 1)
+    await pinCartOrder(BUYER, [a.id, b.id, c.id])
     await prisma.product.update({ where: { id: b.id }, data: { isPublished: false } })
     await prisma.store.update({ where: { id: s2.id }, data: { isPublished: false } })
     const [g1, g2] = (await getCart(deps, BUYER)).groups
