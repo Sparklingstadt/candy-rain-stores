@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils"
 
 type Props = {
   storeName: string
-  slug: string
   isPublished: boolean
   logoUrl: string | null
   themeColor: string
@@ -19,7 +18,7 @@ type Props = {
 const linkClass =
   "focus-visible:ring-ring flex min-h-11 shrink-0 items-center gap-2.5 rounded-xl px-3.5 py-3 text-xs font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 lg:text-sm"
 
-export function DashboardNav({ storeName, slug, isPublished, logoUrl, themeColor, onAccent, receivedCount }: Props) {
+export function DashboardNav({ storeName, isPublished, logoUrl, themeColor, onAccent, receivedCount }: Props) {
   const pathname = usePathname()
   const items = [
     { href: "/dashboard", label: "お店のホーム", icon: HouseIcon, active: pathname === "/dashboard" },
@@ -31,7 +30,7 @@ export function DashboardNav({ storeName, slug, isPublished, logoUrl, themeColor
   return (
     <>
       <p className="text-muted-foreground mb-3 px-2 text-[10px] font-medium tracking-[0.18em]">MY LITTLE STORE</p>
-      <Link href={`/s/${slug}`} className="focus-visible:ring-ring mb-5 flex min-w-0 items-center gap-3 rounded-xl px-2 py-1 outline-none focus-visible:ring-2 lg:mb-7">
+      <Link href="/" className="focus-visible:ring-ring mb-5 flex min-w-0 items-center gap-3 rounded-xl px-2 py-1 outline-none focus-visible:ring-2 lg:mb-7">
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt="" className="size-11 shrink-0 rounded-2xl object-cover" />
@@ -69,7 +68,7 @@ export function DashboardNav({ storeName, slug, isPublished, logoUrl, themeColor
           </Link>
         ))}
       </nav>
-      <Link href={`/s/${slug}`} className="text-muted-foreground hover:text-primary focus-visible:ring-ring mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs outline-none focus-visible:ring-2 lg:mt-6">
+      <Link href="/" className="text-muted-foreground hover:text-primary focus-visible:ring-ring mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs outline-none focus-visible:ring-2 lg:mt-6">
         ストアページを見る<ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
       </Link>
     </>

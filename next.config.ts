@@ -17,6 +17,14 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "5mb" },
   },
+  // 複数のストアがあったころの URL。お店は 1 つだけになったので、トップと /products へ送る
+  async redirects() {
+    return [
+      { source: "/stores", destination: "/", permanent: true },
+      { source: "/s/:slug", destination: "/", permanent: true },
+      { source: "/s/:slug/products/:productId", destination: "/products/:productId", permanent: true },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

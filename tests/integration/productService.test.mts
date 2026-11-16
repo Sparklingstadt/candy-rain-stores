@@ -32,7 +32,8 @@ beforeEach(async () => {
   assertResettableDatabase(process.env.DATABASE_URL)
   await prisma.order.deleteMany()
   await prisma.cartItem.deleteMany()
-  await prisma.store.deleteMany()
+  await prisma.product.deleteMany()
+  await prisma.storeSettings.deleteMany()
   deps = { db: prisma, storage: new MemoryImageStorage() }
 })
 
@@ -40,8 +41,8 @@ after(async () => {
   await prisma.$disconnect()
 })
 
-async function makeStore(ownerSub: string, slug: string, publish = false) {
-  const r = await createStore(deps, ownerSub, { slug, fields: storeFields, logo: null, header: null })
+async function makeStore(ownerSub: string, publish = false) {
+  const r = await createStore(deps, ownerSub, { fields: storeFields, logo: null, header: null })
   assert.equal(r.ok, true)
   if (!r.ok) throw new Error("unreachable")
   if (publish) await setPublished(deps, ownerSub, true)
@@ -65,7 +66,7 @@ async function setCreatedAt(productId: string, minutesAgo: number) {
 
 describe("createProduct / listOwnProducts", () => {
   it("creates an unpublished product and lists newest first", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p1 = await makeProduct("a", "one")
     assert.equal(p1.isPublished, false)
     assert.deepEqual(p1.images, [])
@@ -82,17 +83,17 @@ describe("createProduct / listOwnProducts", () => {
   })
 
   it("rejects the 101st product", async () => {
-    const store = await makeStore("a", "shop-a")
+    await makeStore("a")
     await prisma.product.createMany({
-      data: Array.from({ length: 100 }, (_, i) => ({ storeId: store.id, ...fields, name: `p${i}` })),
+      data: Array.from({ length: 100 }, (_, i) => ({ ...fields, name: `p${i}` })),
     })
     assert.deepEqual(await createProduct(deps, "a", fields), { ok: false, code: "limit_reached" })
   })
 
   it("allows only one of two concurrent creates at 99 products", async () => {
-    const store = await makeStore("a", "shop-a")
+    await makeStore("a")
     await prisma.product.createMany({
-      data: Array.from({ length: 99 }, (_, i) => ({ storeId: store.id, ...fields, name: `p${i}` })),
+      data: Array.from({ length: 99 }, (_, i) => ({ ...fields, name: `p${i}` })),
     })
     const results = await Promise.all([createProduct(deps, "a", fields), createProduct(deps, "a", fields)])
     assert.equal(results.filter((r) => r.ok).length, 1)
@@ -100,14 +101,13 @@ describe("createProduct / listOwnProducts", () => {
       results.filter((r) => !r.ok),
       [{ ok: false, code: "limit_reached" }],
     )
-    assert.equal(await prisma.product.count({ where: { storeId: store.id } }), 100)
+    assert.equal(await prisma.product.count(), 100)
   })
 })
 
 describe("owner scoping", () => {
-  it("does not let another owner touch the product", async () => {
-    await makeStore("a", "shop-a")
-    await makeStore("b", "shop-b")
+  it("does not let anyone but the owner touch the product", async () => {
+    await makeStore("a")
     const p = await makeProduct("a")
     assert.equal(await getOwnProduct(deps, "b", p.id), null)
     assert.deepEqual(await updateProduct(deps, "b", p.id, { ...fields, name: "hack" }, fields.stock), {
@@ -122,7 +122,7 @@ describe("owner scoping", () => {
   })
 
   it("lets the owner update, publish and delete", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     const u = await updateProduct(deps, "a", p.id, { ...fields, name: "new", price: 500 }, fields.stock)
     assert.equal(u.ok && u.product.name, "new")
@@ -135,12 +135,12 @@ describe("owner scoping", () => {
   })
 
   it("handles non-UUID ids without throwing", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     assert.equal(await getOwnProduct(deps, "a", "abc"), null)
     assert.deepEqual(await updateProduct(deps, "a", "abc", fields, fields.stock), { ok: false, code: "not_found" })
     assert.equal(await setProductPublished(deps, "a", "abc", true), null)
     assert.equal(await deleteProduct(deps, "a", "abc"), false)
-    assert.equal(await getProductForViewer(deps, "shop-a", "abc", "a"), null)
+    assert.equal(await getProductForViewer(deps, "abc", "a"), null)
   })
 })
 
@@ -150,7 +150,7 @@ describe("updateProduct and stock changed by orders", () => {
 
   // オーナーが編集画面を開いた（在庫 5）あとで、お客さんが 2 個注文する
   async function loadThenOrder() {
-    await makeStore("a", "shop-a", true)
+    await makeStore("a", true)
     const p = await makeProduct("a")
     await setProductPublished(deps, "a", p.id, true)
     const loaded = await getOwnProduct(deps, "a", p.id)
@@ -185,14 +185,14 @@ describe("updateProduct and stock changed by orders", () => {
   })
 
   it("applies a new stock when the base still matches", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     const u = await updateProduct(deps, "a", p.id, { ...fields, stock: 8 }, 5)
     assert.equal(u.ok && u.product.stock, 8)
   })
 
   it("keeps an unchanged stock above the form limit", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await prisma.product.update({ where: { id: p.id }, data: { stock: 100005 } })
     const u = await updateProduct(deps, "a", p.id, { ...fields, name: "new", stock: 100005 }, 100005)
@@ -203,47 +203,45 @@ describe("updateProduct and stock changed by orders", () => {
 
 describe("getProductForViewer", () => {
   it("returns published products of published stores to anyone", async () => {
-    await makeStore("a", "shop-a", true)
+    await makeStore("a", true)
     const p = await makeProduct("a")
     await setProductPublished(deps, "a", p.id, true)
     for (const viewer of [null, "b", "a"]) {
-      const r = await getProductForViewer(deps, "shop-a", p.id, viewer)
+      const r = await getProductForViewer(deps, p.id, viewer)
       assert.equal(r?.product.id, p.id)
       assert.equal(r?.isOwnerPreview, false)
     }
   })
 
   it("hides unpublished products from non-owners", async () => {
-    await makeStore("a", "shop-a", true)
+    await makeStore("a", true)
     const p = await makeProduct("a")
-    assert.equal(await getProductForViewer(deps, "shop-a", p.id, null), null)
-    assert.equal(await getProductForViewer(deps, "shop-a", p.id, "b"), null)
-    const r = await getProductForViewer(deps, "shop-a", p.id, "a")
+    assert.equal(await getProductForViewer(deps, p.id, null), null)
+    assert.equal(await getProductForViewer(deps, p.id, "b"), null)
+    const r = await getProductForViewer(deps, p.id, "a")
     assert.equal(r?.isOwnerPreview, true)
   })
 
   it("hides products of an unpublished store from non-owners", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await setProductPublished(deps, "a", p.id, true)
-    assert.equal(await getProductForViewer(deps, "shop-a", p.id, null), null)
-    assert.equal(await getProductForViewer(deps, "shop-a", p.id, "b"), null)
-    assert.equal((await getProductForViewer(deps, "shop-a", p.id, "a"))?.isOwnerPreview, true)
+    assert.equal(await getProductForViewer(deps, p.id, null), null)
+    assert.equal(await getProductForViewer(deps, p.id, "b"), null)
+    assert.equal((await getProductForViewer(deps, p.id, "a"))?.isOwnerPreview, true)
   })
 
-  it("returns null for another store's product or a missing id", async () => {
-    await makeStore("a", "shop-a", true)
-    await makeStore("b", "shop-b", true)
-    const p = await makeProduct("a")
-    await setProductPublished(deps, "a", p.id, true)
-    assert.equal(await getProductForViewer(deps, "shop-b", p.id, "b"), null)
-    assert.equal(await getProductForViewer(deps, "shop-a", randomUUID(), "a"), null)
+  it("returns null for a missing id or before the store exists", async () => {
+    const id = randomUUID()
+    assert.equal(await getProductForViewer(deps, id, "a"), null)
+    await makeStore("a", true)
+    assert.equal(await getProductForViewer(deps, id, "a"), null)
   })
 })
 
 describe("listProductsForStorePage", () => {
   it("filters unpublished products and orders newest first", async () => {
-    const store = await makeStore("a", "shop-a", true)
+    await makeStore("a", true)
     const p1 = await makeProduct("a", "one")
     const p2 = await makeProduct("a", "two")
     const p3 = await makeProduct("a", "three")
@@ -252,15 +250,14 @@ describe("listProductsForStorePage", () => {
     await setCreatedAt(p3.id, 1)
     await setProductPublished(deps, "a", p1.id, true)
     await setProductPublished(deps, "a", p3.id, true)
-    assert.deepEqual((await listProductsForStorePage(deps, store.id, false)).map((p) => p.name), ["three", "one"])
-    assert.deepEqual((await listProductsForStorePage(deps, store.id, true)).map((p) => p.name), ["three", "two", "one"])
+    assert.deepEqual((await listProductsForStorePage(deps, false)).map((p) => p.name), ["three", "one"])
+    assert.deepEqual((await listProductsForStorePage(deps, true)).map((p) => p.name), ["three", "two", "one"])
   })
 })
 
 describe("listOtherProducts", () => {
-  it("lists other published products of the same store, newest first, up to the limit", async () => {
-    const store = await makeStore("a", "shop-a", true)
-    await makeStore("b", "shop-b", true)
+  it("lists other published products, newest first, up to the limit", async () => {
+    await makeStore("a", true)
     const names = ["one", "two", "three", "four", "hidden"]
     const made = []
     for (const [i, name] of names.entries()) {
@@ -269,22 +266,20 @@ describe("listOtherProducts", () => {
       made.push(p)
     }
     for (const p of made.slice(0, 4)) await setProductPublished(deps, "a", p.id, true)
-    const foreign = await makeProduct("b", "foreign")
-    await setProductPublished(deps, "b", foreign.id, true)
 
     const current = made[1] // "two"
-    const all = await listOtherProducts(deps, store.id, current.id, 6)
+    const all = await listOtherProducts(deps, current.id, 6)
     assert.deepEqual(all.map((p) => p.name), ["four", "three", "one"])
     assert.deepEqual(all[0].images, [])
     assert.equal(all[0].price, fields.price)
-    const limited = await listOtherProducts(deps, store.id, current.id, 2)
+    const limited = await listOtherProducts(deps, current.id, 2)
     assert.deepEqual(limited.map((p) => p.name), ["four", "three"])
   })
 })
 
 describe("images", () => {
   it("includes image urls ordered by sortOrder", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await prisma.productImage.createMany({
       data: [
@@ -316,7 +311,7 @@ async function addImages(ownerSub: string, productId: string, count: number) {
 
 describe("addProductImage", () => {
   it("appends images with increasing sortOrder under the product path", async () => {
-    const store = await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await addImages("a", p.id, 3)
     const got = await getOwnProduct(deps, "a", p.id)
@@ -324,13 +319,13 @@ describe("addProductImage", () => {
     const rows = await prisma.productImage.findMany({ where: { productId: p.id } })
     assert.equal(rows.length, 3)
     for (const row of rows) {
-      assert.match(row.path, new RegExp(`^${store.id}/products/${p.id}/[0-9a-f-]{36}\\.png$`))
+      assert.match(row.path, new RegExp(`^products/${p.id}/[0-9a-f-]{36}\\.png$`))
     }
     assert.equal(memory().files.size, 3)
   })
 
   it("rejects a 6th image and leaves no file behind", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await addImages("a", p.id, 5)
     assert.deepEqual(await addProductImage(deps, "a", p.id, png(9)), { ok: false, code: "limit_reached" })
@@ -339,7 +334,7 @@ describe("addProductImage", () => {
   })
 
   it("lets only one of two concurrent adds succeed at 4 images", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await addImages("a", p.id, 4)
     const results = await Promise.all([
@@ -353,7 +348,7 @@ describe("addProductImage", () => {
   })
 
   it("throws and adds no row when the upload fails", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     memory().failNextPut = true
     await assert.rejects(addProductImage(deps, "a", p.id, png()))
@@ -362,8 +357,7 @@ describe("addProductImage", () => {
   })
 
   it("returns not_found for foreign, missing or non-UUID products without uploading", async () => {
-    await makeStore("a", "shop-a")
-    await makeStore("b", "shop-b")
+    await makeStore("a")
     const p = await makeProduct("a")
     assert.deepEqual(await addProductImage(deps, "b", p.id, png()), { ok: false, code: "not_found" })
     assert.deepEqual(await addProductImage(deps, "a", randomUUID(), png()), { ok: false, code: "not_found" })
@@ -375,7 +369,7 @@ describe("addProductImage", () => {
 
 describe("makeProductImageFirst / removeProductImage", () => {
   it("moves an image to the front", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await addImages("a", p.id, 3)
     const before = (await getOwnProduct(deps, "a", p.id))!
@@ -386,7 +380,7 @@ describe("makeProductImageFirst / removeProductImage", () => {
   })
 
   it("removes an image row and its file", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p = await makeProduct("a")
     await addImages("a", p.id, 3)
     const before = (await getOwnProduct(deps, "a", p.id))!
@@ -399,8 +393,7 @@ describe("makeProductImageFirst / removeProductImage", () => {
   })
 
   it("returns null and changes nothing for foreign, mismatched or invalid ids", async () => {
-    await makeStore("a", "shop-a")
-    await makeStore("b", "shop-b")
+    await makeStore("a")
     const p1 = await makeProduct("a", "one")
     const p2 = await makeProduct("a", "two")
     await addImages("a", p1.id, 2)
@@ -423,7 +416,7 @@ describe("makeProductImageFirst / removeProductImage", () => {
 
 describe("deleteProduct cleanup", () => {
   it("removes the image files of the deleted product only", async () => {
-    await makeStore("a", "shop-a")
+    await makeStore("a")
     const p1 = await makeProduct("a", "one")
     const p2 = await makeProduct("a", "two")
     await addImages("a", p1.id, 2)

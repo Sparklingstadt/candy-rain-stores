@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useState, useSyncExternalStore } from "react"
+import { useActionState, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +16,6 @@ import {
 } from "./actions"
 
 type Existing = {
-  slug: string
   name: string
   description: string | null
   themeColor: string
@@ -25,8 +24,6 @@ type Existing = {
   logoUrl: string | null
   headerUrl: string | null
 }
-
-const noopSubscribe = () => () => {}
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null
@@ -45,17 +42,11 @@ export function StoreForm({ store }: { store?: Existing }) {
     editing ? updateStoreAction : createStoreAction,
     {},
   )
-  const origin = useSyncExternalStore(
-    noopSubscribe,
-    () => window.location.origin,
-    () => "",
-  )
   // Each submission returns a new state object, so this fires once per successful save.
   useEffect(() => {
     if (state.saved) toast.success("保存しました")
   }, [state])
   const values = state.values
-  const [slug, setSlug] = useState(values?.slug ?? "")
   const errors = state.errors ?? {}
   const [fileErrors, setFileErrors] = useState<{ logo?: string; header?: string }>({})
 
@@ -80,30 +71,6 @@ export function StoreForm({ store }: { store?: Existing }) {
       </CardHeader>
       <CardContent>
         <form action={action} className="grid items-start gap-6 md:grid-cols-2">
-          {editing ? (
-            <div className="grid gap-2 text-sm">
-              <span className="font-medium">ストア ID</span>
-              <p className="bg-secondary/30 flex min-h-10 items-center rounded-xl px-3 font-mono">{store.slug}</p>
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              <Label htmlFor="store-slug">ストア ID</Label>
-              <Input
-                id="store-slug"
-                name="slug"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                autoComplete="off"
-                aria-invalid={errors.slug ? true : undefined}
-              />
-              <span className="text-muted-foreground block text-sm">
-                URL: {origin}/s/{slug}
-              </span>
-              <span className="text-muted-foreground block text-sm">作成後は変更できません</span>
-              <FieldError message={errors.slug} />
-            </div>
-          )}
-
           <div className="grid gap-2">
             <Label htmlFor="store-name">ストア名</Label>
             <Input

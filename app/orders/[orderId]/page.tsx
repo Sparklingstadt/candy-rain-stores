@@ -33,7 +33,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orderId:
             <dt className="inline font-medium">ストア：</dt>
             <dd className="inline">
               {store?.isPublished ? (
-                <Link href={`/s/${store.slug}`} className="underline underline-offset-4">
+                <Link href="/" className="underline underline-offset-4">
                   {order.storeName}
                 </Link>
               ) : (

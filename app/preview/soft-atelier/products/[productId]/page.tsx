@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeftIcon, LeafIcon } from "lucide-react"
-import { ProductGallery } from "@/app/s/[slug]/products/[productId]/ProductGallery"
+import { ProductGallery } from "@/app/products/[productId]/ProductGallery"
 import { sampleProducts } from "../../data"
 import { formatPrice } from "@/lib/formatPrice"
 import { Button } from "@/components/ui/button"

@@ -4,7 +4,9 @@ import { Prisma } from "../generated/prisma/client"
 import { MAX_IMAGES_PER_PRODUCT, MAX_PRODUCTS_PER_STORE, type ProductFields } from "../lib/productValidation"
 import {
   getStoreForViewer,
+  isStoreOwner,
   removeQuietly,
+  STORE_ID,
   type ImageInput,
   type StoreView,
 } from "./storeService"
@@ -33,42 +35,33 @@ function toProductView(deps: StoreDeps, product: ProductWithImages): ProductView
 }
 
 
+// お店のオーナーでなければ null
 export async function listOwnProducts(deps: StoreDeps, ownerSub: string): Promise<ProductView[] | null> {
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return null
-  return listProductsByStore(deps, store.id, false)
+  if (!(await isStoreOwner(deps, ownerSub))) return null
+  return listProducts(deps, false)
 }
 
-async function listProductsByStore(
-  deps: StoreDeps,
-  storeId: string,
-  publishedOnly: boolean,
-): Promise<ProductView[]> {
+async function listProducts(deps: StoreDeps, publishedOnly: boolean): Promise<ProductView[]> {
   const products = await deps.db.product.findMany({
-    where: { storeId, ...(publishedOnly ? { isPublished: true } : {}) },
+    where: publishedOnly ? { isPublished: true } : {},
     include: withImages,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   })
   return products.map((p) => toProductView(deps, p))
 }
 
-export function listProductsForStorePage(
-  deps: StoreDeps,
-  storeId: string,
-  includeUnpublished: boolean,
-): Promise<ProductView[]> {
-  return listProductsByStore(deps, storeId, !includeUnpublished)
+export function listProductsForStorePage(deps: StoreDeps, includeUnpublished: boolean): Promise<ProductView[]> {
+  return listProducts(deps, !includeUnpublished)
 }
 
-// Published products of the same store other than the one being viewed, newest first.
+// Published products other than the one being viewed, newest first.
 export async function listOtherProducts(
   deps: StoreDeps,
-  storeId: string,
   excludeProductId: string,
   limit: number,
 ): Promise<ProductView[]> {
   const products = await deps.db.product.findMany({
-    where: { storeId, isPublished: true, id: { not: excludeProductId } },
+    where: { isPublished: true, id: { not: excludeProductId } },
     include: withImages,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit,
@@ -82,10 +75,9 @@ export async function getOwnProduct(
   productId: string,
 ): Promise<ProductView | null> {
   if (!isUuid(productId)) return null
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return null
+  if (!(await isStoreOwner(deps, ownerSub))) return null
   const product = await deps.db.product.findFirst({
-    where: { id: productId, storeId: store.id },
+    where: { id: productId },
     include: withImages,
   })
   return product ? toProductView(deps, product) : null
@@ -96,16 +88,15 @@ export async function createProduct(
   ownerSub: string,
   fields: ProductFields,
 ): Promise<{ ok: true; product: ProductView } | { ok: false; code: "no_store" | "limit_reached" }> {
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return { ok: false, code: "no_store" }
+  if (!(await isStoreOwner(deps, ownerSub))) return { ok: false, code: "no_store" }
 
   return deps.db.$transaction(async (tx) => {
-    // Serialize concurrent creates per store so the count check below cannot be raced.
-    await tx.$queryRaw`SELECT id FROM "Store" WHERE id = ${store.id}::uuid FOR UPDATE`
-    const count = await tx.product.count({ where: { storeId: store.id } })
+    // Serialize concurrent creates so the count check below cannot be raced.
+    await tx.$queryRaw`SELECT id FROM "StoreSettings" WHERE id = ${STORE_ID} FOR UPDATE`
+    const count = await tx.product.count()
     if (count >= MAX_PRODUCTS_PER_STORE) return { ok: false as const, code: "limit_reached" as const }
     const product = await tx.product.create({
-      data: { storeId: store.id, ...fields },
+      data: fields,
       include: withImages,
     })
     return { ok: true as const, product: toProductView(deps, product) }
@@ -126,18 +117,17 @@ export async function updateProduct(
   stockBase: number,
 ): Promise<UpdateProductResult> {
   if (!isUuid(productId)) return { ok: false, code: "not_found" }
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return { ok: false, code: "not_found" }
+  if (!(await isStoreOwner(deps, ownerSub))) return { ok: false, code: "not_found" }
   const { stock, ...rest } = fields
   const stockChanged = stock !== stockBase
   const { count } = await deps.db.product.updateMany({
-    where: { id: productId, storeId: store.id, ...(stockChanged ? { stock: stockBase } : {}) },
+    where: { id: productId, ...(stockChanged ? { stock: stockBase } : {}) },
     data: stockChanged ? fields : rest,
   })
   if (count === 0) {
     if (!stockChanged) return { ok: false, code: "not_found" }
     const exists = await deps.db.product.findFirst({
-      where: { id: productId, storeId: store.id },
+      where: { id: productId },
       select: { id: true },
     })
     return { ok: false, code: exists ? "stock_changed" : "not_found" }
@@ -162,10 +152,9 @@ async function mutateOwn(
   data: Prisma.ProductUpdateManyMutationInput,
 ): Promise<ProductView | null> {
   if (!isUuid(productId)) return null
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return null
+  if (!(await isStoreOwner(deps, ownerSub))) return null
   const { count } = await deps.db.product.updateMany({
-    where: { id: productId, storeId: store.id },
+    where: { id: productId },
     data,
   })
   if (count === 0) return null
@@ -174,13 +163,9 @@ async function mutateOwn(
 
 export async function deleteProduct(deps: StoreDeps, ownerSub: string, productId: string): Promise<boolean> {
   if (!isUuid(productId)) return false
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return false
-  const images = await deps.db.productImage.findMany({
-    where: { productId, product: { storeId: store.id } },
-    select: { path: true },
-  })
-  const { count } = await deps.db.product.deleteMany({ where: { id: productId, storeId: store.id } })
+  if (!(await isStoreOwner(deps, ownerSub))) return false
+  const images = await deps.db.productImage.findMany({ where: { productId }, select: { path: true } })
+  const { count } = await deps.db.product.deleteMany({ where: { id: productId } })
   if (count > 0) await removeQuietly(deps.storage, images.map((i) => i.path))
   return count > 0
 }
@@ -192,15 +177,11 @@ export async function addProductImage(
   image: NonNullable<ImageInput>,
 ): Promise<{ ok: true; product: ProductView } | { ok: false; code: "not_found" | "limit_reached" }> {
   if (!isUuid(productId)) return { ok: false, code: "not_found" }
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return { ok: false, code: "not_found" }
-  const owned = await deps.db.product.findFirst({
-    where: { id: productId, storeId: store.id },
-    select: { id: true },
-  })
-  if (!owned) return { ok: false, code: "not_found" }
+  if (!(await isStoreOwner(deps, ownerSub))) return { ok: false, code: "not_found" }
+  const exists = await deps.db.product.findFirst({ where: { id: productId }, select: { id: true } })
+  if (!exists) return { ok: false, code: "not_found" }
 
-  const path = `${store.id}/products/${productId}/${randomUUID()}.${image.ext}`
+  const path = `products/${productId}/${randomUUID()}.${image.ext}`
   await deps.storage.put(path, image.bytes, image.contentType)
 
   let outcome: "created" | "limit_reached" | "not_found"
@@ -233,11 +214,8 @@ export async function addProductImage(
 
 async function findOwnImage(deps: StoreDeps, ownerSub: string, productId: string, imageId: string) {
   if (!isUuid(productId) || !isUuid(imageId)) return null
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (!store) return null
-  return deps.db.productImage.findFirst({
-    where: { id: imageId, productId, product: { storeId: store.id } },
-  })
+  if (!(await isStoreOwner(deps, ownerSub))) return null
+  return deps.db.productImage.findFirst({ where: { id: imageId, productId } })
 }
 
 export async function removeProductImage(
@@ -273,16 +251,15 @@ export async function makeProductImageFirst(
 
 export async function getProductForViewer(
   deps: StoreDeps,
-  slug: string,
   productId: string,
   viewerSub: string | null,
 ): Promise<{ store: StoreView; product: ProductView; isOwnerPreview: boolean } | null> {
   if (!isUuid(productId)) return null
-  const found = await getStoreForViewer(deps, slug, viewerSub)
+  const found = await getStoreForViewer(deps, viewerSub)
   if (!found) return null
   const { store } = found
   const row = await deps.db.product.findFirst({
-    where: { id: productId, storeId: store.id },
+    where: { id: productId },
     include: withImages,
   })
   if (!row) return null

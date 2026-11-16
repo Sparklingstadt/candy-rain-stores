@@ -4,12 +4,8 @@ import {
   DEFAULT_THEME_COLOR,
   MAX_IMAGE_BYTES,
   validateImage,
-  validateSlug,
   validateStoreFields,
 } from "./storeValidation"
-
-const SLUG_MESSAGE =
-  "ストア ID は英小文字・数字・ハイフンで 3〜30 文字にしてください（先頭と末尾にハイフンは使えません）"
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 
@@ -22,25 +18,6 @@ function pngOfSize(size: number): Uint8Array {
 test("既定値", () => {
   assert.equal(DEFAULT_THEME_COLOR, "#e85d8f")
   assert.equal(MAX_IMAGE_BYTES, 2 * 1024 * 1024)
-})
-
-test("ストア ID は前後の空白を除き小文字化して受け付ける", () => {
-  assert.deepEqual(validateSlug("sweets-shop"), { ok: true, slug: "sweets-shop" })
-  assert.deepEqual(validateSlug(" Sweets-Shop "), { ok: true, slug: "sweets-shop" })
-})
-
-test("ストア ID は 3〜30 文字で境界を含む", () => {
-  assert.deepEqual(validateSlug("abc"), { ok: true, slug: "abc" })
-  const thirty = "a".repeat(30)
-  assert.deepEqual(validateSlug(thirty), { ok: true, slug: thirty })
-  assert.deepEqual(validateSlug("ab"), { ok: false, error: SLUG_MESSAGE })
-  assert.deepEqual(validateSlug("a".repeat(31)), { ok: false, error: SLUG_MESSAGE })
-})
-
-test("ストア ID は先頭末尾のハイフン・アンダースコア・全角を拒否する", () => {
-  for (const bad of ["-shop", "shop-", "sweets_shop", "ｓｈｏｐ"]) {
-    assert.deepEqual(validateSlug(bad), { ok: false, error: SLUG_MESSAGE }, bad)
-  }
 })
 
 test("ストア名は trim し、説明が空なら null、色は小文字化する", () => {

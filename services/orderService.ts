@@ -5,16 +5,17 @@ import { canTransition, ORDER_STATUSES, PAYMENT_DEADLINE_DAYS, type OrderStatus 
 import { cartVersion, lineProblem, lockCart, type CartLineProblem } from "./cartService"
 import { isUuid } from "../lib/uuid"
 import type { StoreDeps } from "./deps"
+import { isStoreOwner, STORE_ID } from "./storeService"
 
 export type Buyer = { sub: string; name: string; email: string }
 export type OrderView = Order & { items: OrderItem[] } // items は作成順
-// store はストアが削除されていれば null。非公開のストアにはリンクしない
+// store は今のお店の公開状態と連絡先（お店がなければ null）。非公開のお店にはリンクしない
 export type BuyerOrderView = OrderView & {
-  store: { slug: string; isPublished: boolean; contactEmail: string | null } | null
+  store: { isPublished: boolean; contactEmail: string | null } | null
 }
 export type OrderProblem = { productId: string; problem: CartLineProblem; stock: number }
 export type PlaceOrderResult =
-  | { ok: true; orderIds: string[] }
+  | { ok: true; orderId: string }
   | { ok: false; code: "empty_cart" }
   | { ok: false; code: "problems"; problems: OrderProblem[] }
   // 注文手続き画面で見せたカートから行・数量・単価が変わった。version は今のカートの版
@@ -22,7 +23,7 @@ export type PlaceOrderResult =
   | { ok: false; code: "total_too_large" }
 export type ChangeResult = { ok: true } | { ok: false; code: "not_found" | "invalid_transition" | "conflict" }
 
-// Order.totalAmount は INTEGER。1 ストアへの注文の合計はこれを超えられない
+// Order.totalAmount は INTEGER。1 つの注文の合計はこれを超えられない
 export const MAX_ORDER_TOTAL = 2_147_483_647
 
 // OrderItem には並び順の列がないので、1 注文の中では ID を昇順に振って作成順を表す
@@ -49,14 +50,12 @@ export async function placeOrder(
     const productIds = cart.map((c) => c.productId)
     // デッドロックを避けるため ID 順にロックする
     await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ANY(${productIds}::uuid[]) ORDER BY id FOR UPDATE`
-    const products = await tx.product.findMany({
-      where: { id: { in: productIds } },
-      include: { store: true },
-    })
+    const products = await tx.product.findMany({ where: { id: { in: productIds } } })
     const byId = new Map(products.map((p) => [p.id, p]))
+    const store = await tx.storeSettings.findUnique({ where: { id: STORE_ID } })
 
     // 画面で見せたあとに単価・数量・行が変わっていたら確定しない。
-    // カートを読んでからロックを取るまでに商品（かストア）が消えた行は、CASCADE でカートからも消える
+    // カートを読んでからロックを取るまでに商品が消えた行は、CASCADE でカートからも消える
     const present = cart.filter((line) => byId.has(line.productId))
     const version = cartVersion(
       present.map((line) => ({
@@ -72,22 +71,15 @@ export async function placeOrder(
     const problems: OrderProblem[] = []
     for (const line of cart) {
       const product = byId.get(line.productId)!
-      const problem = lineProblem(product, line.quantity, buyer.sub)
+      const problem = lineProblem(product, store, line.quantity, buyer.sub)
       if (problem) problems.push({ productId: product.id, problem, stock: product.stock })
     }
     if (problems.length > 0) return { ok: false, code: "problems", problems } as const
 
-    const groups = new Map<string, { productId: string; quantity: number }[]>()
-    for (const line of cart) {
-      const storeId = byId.get(line.productId)!.storeId
-      const group = groups.get(storeId) ?? []
-      group.push({ productId: line.productId, quantity: line.quantity })
-      groups.set(storeId, group)
-    }
-    for (const lines of groups.values()) {
-      const total = lines.reduce((sum, line) => sum + byId.get(line.productId)!.price * line.quantity, 0)
-      if (total > MAX_ORDER_TOTAL) return { ok: false, code: "total_too_large" } as const
-    }
+    // problems が空なら、お店はあって公開中
+    if (!store) return { ok: false, code: "problems", problems: [] } as const
+    const total = cart.reduce((sum, line) => sum + byId.get(line.productId)!.price * line.quantity, 0)
+    if (total > MAX_ORDER_TOTAL) return { ok: false, code: "total_too_large" } as const
 
     for (const line of [...cart].sort((a, b) => (a.productId < b.productId ? -1 : 1))) {
       await tx.product.update({
@@ -96,39 +88,34 @@ export async function placeOrder(
       })
     }
 
-    const orderIds: string[] = []
-    for (const [storeId, lines] of groups) {
-      const store = byId.get(lines[0].productId)!.store
-      const itemIds = lines.map(() => randomUUID()).sort()
-      const items = lines.map((line, i) => {
-        const product = byId.get(line.productId)!
-        return {
-          id: itemIds[i],
-          productId: product.id,
-          productName: product.name,
-          unitPrice: product.price,
-          quantity: line.quantity,
-        }
-      })
-      const order = await tx.order.create({
-        data: {
-          storeId,
-          storeName: store.name,
-          paymentInstructions: store.paymentInstructions,
-          buyerSub: buyer.sub,
-          buyerName: buyer.name,
-          buyerEmail: buyer.email,
-          ...shipping,
-          totalAmount: items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-          items: { create: items },
+    const itemIds = cart.map(() => randomUUID()).sort()
+    const order = await tx.order.create({
+      data: {
+        storeName: store.name,
+        paymentInstructions: store.paymentInstructions,
+        buyerSub: buyer.sub,
+        buyerName: buyer.name,
+        buyerEmail: buyer.email,
+        ...shipping,
+        totalAmount: total,
+        items: {
+          create: cart.map((line, i) => {
+            const product = byId.get(line.productId)!
+            return {
+              id: itemIds[i],
+              productId: product.id,
+              productName: product.name,
+              unitPrice: product.price,
+              quantity: line.quantity,
+            }
+          }),
         },
-        select: { id: true },
-      })
-      orderIds.push(order.id)
-    }
+      },
+      select: { id: true },
+    })
 
     await tx.cartItem.deleteMany({ where: { id: { in: cart.map((c) => c.id) }, buyerSub: buyer.sub } })
-    return { ok: true, orderIds } as const
+    return { ok: true, orderId: order.id } as const
   })
 }
 
@@ -146,10 +133,13 @@ export async function getBuyerOrder(
   orderId: string,
 ): Promise<BuyerOrderView | null> {
   if (!isUuid(orderId)) return null
-  return deps.db.order.findFirst({
-    where: { id: orderId, buyerSub },
-    include: { ...withItems, store: { select: { slug: true, isPublished: true, contactEmail: true } } },
+  const order = await deps.db.order.findFirst({ where: { id: orderId, buyerSub }, include: withItems })
+  if (!order) return null
+  const store = await deps.db.storeSettings.findUnique({
+    where: { id: STORE_ID },
+    select: { isPublished: true, contactEmail: true },
   })
+  return { ...order, store }
 }
 
 export async function getLastShipping(deps: StoreDeps, buyerSub: string): Promise<ShippingInfo | null> {
@@ -160,20 +150,14 @@ export async function getLastShipping(deps: StoreDeps, buyerSub: string): Promis
   })
 }
 
-async function ownStoreId(deps: StoreDeps, ownerSub: string): Promise<string | null> {
-  const store = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  return store?.id ?? null
-}
-
 export async function listStoreOrders(
   deps: StoreDeps,
   ownerSub: string,
   status?: OrderStatus,
 ): Promise<OrderView[] | null> {
-  const storeId = await ownStoreId(deps, ownerSub)
-  if (!storeId) return null
+  if (!(await isStoreOwner(deps, ownerSub))) return null
   return deps.db.order.findMany({
-    where: { storeId, ...(status ? { status } : {}) },
+    where: status ? { status } : {},
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 100,
     include: withItems,
@@ -181,9 +165,8 @@ export async function listStoreOrders(
 }
 
 export async function countReceivedOrders(deps: StoreDeps, ownerSub: string): Promise<number> {
-  const storeId = await ownStoreId(deps, ownerSub)
-  if (!storeId) return 0
-  return deps.db.order.count({ where: { storeId, status: "RECEIVED" } })
+  if (!(await isStoreOwner(deps, ownerSub))) return 0
+  return deps.db.order.count({ where: { status: "RECEIVED" } })
 }
 
 // 状態ごとの件数を 1 回のクエリで数える。ストアがなければ null
@@ -191,9 +174,8 @@ export async function countStoreOrdersByStatus(
   deps: StoreDeps,
   ownerSub: string,
 ): Promise<Record<OrderStatus, number> | null> {
-  const storeId = await ownStoreId(deps, ownerSub)
-  if (!storeId) return null
-  const groups = await deps.db.order.groupBy({ by: ["status"], where: { storeId }, _count: { _all: true } })
+  if (!(await isStoreOwner(deps, ownerSub))) return null
+  const groups = await deps.db.order.groupBy({ by: ["status"], _count: { _all: true } })
   const counts = Object.fromEntries(ORDER_STATUSES.map((s) => [s, 0])) as Record<OrderStatus, number>
   for (const g of groups) counts[g.status] = g._count._all
   return counts
@@ -201,12 +183,11 @@ export async function countStoreOrdersByStatus(
 
 export async function getStoreOrder(deps: StoreDeps, ownerSub: string, orderId: string): Promise<OrderView | null> {
   if (!isUuid(orderId)) return null
-  const storeId = await ownStoreId(deps, ownerSub)
-  if (!storeId) return null
-  return deps.db.order.findFirst({ where: { id: orderId, storeId }, include: withItems })
+  if (!(await isStoreOwner(deps, ownerSub))) return null
+  return deps.db.order.findFirst({ where: { id: orderId }, include: withItems })
 }
 
-// scope は変えてよい注文の条件（オーナーなら自分のストア、期限切れなら受付のまま期限を過ぎたもの）
+// scope は変えてよい注文の条件（オーナーならすべて、期限切れなら受付のまま期限を過ぎたもの）
 async function changeStatus(
   deps: StoreDeps,
   scope: Prisma.OrderWhereInput,
@@ -251,9 +232,8 @@ export async function changeOrderStatusAsOwner(
   to: OrderStatus,
 ): Promise<ChangeResult> {
   if (!isUuid(orderId)) return { ok: false, code: "not_found" }
-  const storeId = await ownStoreId(deps, ownerSub)
-  if (!storeId) return { ok: false, code: "not_found" }
-  return changeStatus(deps, { storeId }, orderId, to)
+  if (!(await isStoreOwner(deps, ownerSub))) return { ok: false, code: "not_found" }
+  return changeStatus(deps, {}, orderId, to)
 }
 
 // 一度に取り消す件数の上限。残りは次の実行で取り消す
@@ -261,26 +241,20 @@ const EXPIRE_BATCH = 200
 
 // 受付のまま支払期限（paymentDeadline）を過ぎた注文をキャンセルし、在庫を戻す。
 // 1 件ずつオーナーのキャンセルと同じ手順で行うので、同時にオーナーが支払確認していれば取り消さない。
-// 取り消した注文の数と、在庫が戻ったストアの slug を返す
-export async function expireUnpaidOrders(
-  deps: StoreDeps,
-  now: Date,
-): Promise<{ canceled: number; storeSlugs: string[] }> {
+// 取り消した注文の数を返す
+export async function expireUnpaidOrders(deps: StoreDeps, now: Date): Promise<{ canceled: number }> {
   const cutoff = new Date(now.getTime() - PAYMENT_DEADLINE_DAYS * 24 * 60 * 60 * 1000)
   const scope = { status: "RECEIVED", createdAt: { lt: cutoff } } satisfies Prisma.OrderWhereInput
   const orders = await deps.db.order.findMany({
     where: scope,
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: EXPIRE_BATCH,
-    select: { id: true, store: { select: { slug: true } } },
+    select: { id: true },
   })
   let canceled = 0
-  const storeSlugs = new Set<string>()
   for (const order of orders) {
     const result = await changeStatus(deps, scope, order.id, "CANCELED")
-    if (!result.ok) continue
-    canceled++
-    if (order.store) storeSlugs.add(order.store.slug)
+    if (result.ok) canceled++
   }
-  return { canceled, storeSlugs: [...storeSlugs] }
+  return { canceled }
 }

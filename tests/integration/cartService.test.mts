@@ -22,7 +22,8 @@ let deps: StoreDeps
 beforeEach(async () => {
   assertResettableDatabase(process.env.DATABASE_URL)
   await prisma.cartItem.deleteMany()
-  await prisma.store.deleteMany()
+  await prisma.product.deleteMany()
+  await prisma.storeSettings.deleteMany()
   deps = { db: prisma, storage: new MemoryImageStorage() }
 })
 
@@ -30,20 +31,14 @@ after(async () => {
   await prisma.$disconnect()
 })
 
-let seq = 0
-async function makeStore(ownerSub = `owner-${++seq}`, isPublished = true, name = "あめ屋") {
-  return prisma.store.create({
-    data: { ownerSub, slug: `shop-${randomUUID().slice(0, 8)}`, name, isPublished },
-  })
+// サイトのお店（1 つだけ）
+async function makeStore(ownerSub = "owner", isPublished = true, name = "あめ屋") {
+  return prisma.storeSettings.create({ data: { ownerSub, name, isPublished } })
 }
 
-async function makeProduct(
-  storeId: string,
-  o: { isPublished?: boolean; stock?: number; price?: number; name?: string } = {},
-) {
+async function makeProduct(o: { isPublished?: boolean; stock?: number; price?: number; name?: string } = {}) {
   return prisma.product.create({
     data: {
-      storeId,
       name: o.name ?? "いちご飴",
       price: o.price ?? 300,
       stock: o.stock ?? 5,
@@ -67,7 +62,8 @@ async function rowCount(buyerSub = BUYER) {
 
 describe("addToCart", () => {
   it("adds a row and sums quantities for the same product", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    await makeStore()
+    const p = await makeProduct()
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 2), { ok: true })
     assert.equal(await rowCount(), 1)
     assert.deepEqual(await addToCart(deps, BUYER, p.id, "3"), { ok: true })
@@ -76,7 +72,8 @@ describe("addToCart", () => {
   })
 
   it("caps 7 + 5 at 10 and reports capped when nothing more was added", async () => {
-    const p = await makeProduct((await makeStore()).id, { stock: 20 })
+    await makeStore()
+    const p = await makeProduct({ stock: 20 })
     await addToCart(deps, BUYER, p.id, 7)
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 5), { ok: true })
     assert.equal(await countCartItems(deps, BUYER), 10)
@@ -85,7 +82,8 @@ describe("addToCart", () => {
   })
 
   it("refuses to go over the stock and reports how many more fit", async () => {
-    const p = await makeProduct((await makeStore()).id, { stock: 3 })
+    await makeStore()
+    const p = await makeProduct({ stock: 3 })
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 4), {
       ok: false,
       code: "insufficient_stock",
@@ -111,39 +109,50 @@ describe("addToCart", () => {
   })
 
   it("lets only the stock's worth of concurrent adds in", async () => {
-    const p = await makeProduct((await makeStore()).id, { stock: 2 })
+    await makeStore()
+    const p = await makeProduct({ stock: 2 })
     const results = await Promise.all([1, 2, 3].map(() => addToCart(deps, BUYER, p.id, 1)))
     assert.equal(results.filter((r) => r.ok).length, 2)
     assert.equal(await countCartItems(deps, BUYER), 2)
   })
 
   it("rejects invalid quantities without changing the cart", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    await makeStore()
+    const p = await makeProduct()
     for (const q of ["100", "-1", "abc", 0, 11]) {
       assert.deepEqual(await addToCart(deps, BUYER, p.id, q), { ok: false, code: "invalid_quantity" })
     }
     assert.equal(await rowCount(), 0)
   })
 
-  it("returns not_found for unpublished, unpublished-store, missing and malformed ids", async () => {
-    const hidden = await makeProduct((await makeStore()).id, { isPublished: false })
-    const inClosed = await makeProduct((await makeStore(undefined, false)).id)
-    for (const id of [hidden.id, inClosed.id, randomUUID(), "abc"]) {
+  it("returns not_found for unpublished, missing and malformed ids", async () => {
+    await makeStore()
+    const hidden = await makeProduct({ isPublished: false })
+    for (const id of [hidden.id, randomUUID(), "abc"]) {
       assert.deepEqual(await addToCart(deps, BUYER, id, 1), { ok: false, code: "not_found" })
     }
     assert.equal(await rowCount(), 0)
   })
 
+  it("returns not_found while the store is missing or unpublished", async () => {
+    const p = await makeProduct()
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: false, code: "not_found" })
+    await makeStore(undefined, false)
+    assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: false, code: "not_found" })
+    assert.equal(await rowCount(), 0)
+  })
+
   it("returns own_store for the buyer's own product", async () => {
-    const p = await makeProduct((await makeStore(BUYER)).id)
+    await makeStore(BUYER)
+    const p = await makeProduct()
     assert.deepEqual(await addToCart(deps, BUYER, p.id, 1), { ok: false, code: "own_store" })
     assert.equal(await rowCount(), 0)
   })
 
   it("returns cart_full at the 31st distinct product but still allows increments", async () => {
-    const store = await makeStore()
+    await makeStore()
     const products = []
-    for (let i = 0; i < 31; i++) products.push(await makeProduct(store.id, { name: `p${i}` }))
+    for (let i = 0; i < 31; i++) products.push(await makeProduct({ name: `p${i}` }))
     for (let i = 0; i < 30; i++) assert.deepEqual(await addToCart(deps, BUYER, products[i].id, 1), { ok: true })
     assert.deepEqual(await addToCart(deps, BUYER, products[30].id, 1), { ok: false, code: "cart_full" })
     assert.equal(await rowCount(), 30)
@@ -152,7 +161,8 @@ describe("addToCart", () => {
   })
 
   it("survives concurrent adds of the same product", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    await makeStore()
+    const p = await makeProduct()
     const results = await Promise.all([1, 2, 3, 4].map(() => addToCart(deps, BUYER, p.id, 1)))
     assert.ok(results.every((r) => r.ok))
     assert.equal(await rowCount(), 1)
@@ -163,7 +173,8 @@ describe("addToCart", () => {
 describe("getCart", () => {
   it("returns an empty cart", async () => {
     assert.deepEqual(await getCart(deps, BUYER), {
-      groups: [],
+      store: null,
+      lines: [],
       total: 0,
       itemCount: 0,
       hasProblems: false,
@@ -171,13 +182,13 @@ describe("getCart", () => {
     })
   })
 
-  it("groups by store in first-added order with totals, image and problems", async () => {
-    const s1 = await makeStore(undefined, true, "店1")
-    const s2 = await makeStore(undefined, true, "店2")
-    const a = await makeProduct(s1.id, { name: "A", price: 100, stock: 9 })
-    const b = await makeProduct(s2.id, { name: "B", price: 200, stock: 9 })
-    const c = await makeProduct(s1.id, { name: "C", price: 50, stock: 2 })
-    const d = await makeProduct(s2.id, { name: "D", price: 10, stock: 9 })
+  it("lists lines in first-added order with the store, totals, image and problems", async () => {
+    await prisma.storeSettings.create({
+      data: { ownerSub: "owner", name: "店1", isPublished: true, paymentInstructions: "振込" },
+    })
+    const a = await makeProduct({ name: "A", price: 100, stock: 9 })
+    const b = await makeProduct({ name: "B", price: 200, stock: 9 })
+    const c = await makeProduct({ name: "C", price: 50, stock: 2 })
     await prisma.productImage.createMany({
       data: [
         { productId: a.id, path: "a/second.png", sortOrder: 2 },
@@ -187,59 +198,40 @@ describe("getCart", () => {
     await addToCart(deps, BUYER, a.id, 2)
     await addToCart(deps, BUYER, b.id, 1)
     await addToCart(deps, BUYER, c.id, 2)
-    await addToCart(deps, BUYER, d.id, 4)
-    await pinCartOrder(BUYER, [a.id, b.id, c.id, d.id])
+    await pinCartOrder(BUYER, [a.id, b.id, c.id])
     await prisma.cartItem.updateMany({ where: { productId: c.id }, data: { quantity: 3 } }) // stock 2 < 3
-    await prisma.product.update({ where: { id: d.id }, data: { isPublished: false } })
+    await prisma.product.update({ where: { id: b.id }, data: { isPublished: false } })
 
     const cart = await getCart(deps, BUYER)
-    assert.deepEqual(cart.groups.map((g) => g.storeName), ["店1", "店2"])
-    const [g1, g2] = cart.groups
-    assert.deepEqual(g1.lines.map((l) => l.productName), ["A", "C"])
-    assert.deepEqual(g2.lines.map((l) => l.productName), ["B", "D"])
-    assert.equal(g1.subtotal, 100 * 2 + 50 * 3)
-    assert.equal(g2.subtotal, 200 + 10 * 4)
-    assert.equal(cart.total, 350 + 240)
-    assert.equal(cart.itemCount, 10)
+    assert.deepEqual(cart.store, { name: "店1", isPublished: true, paymentInstructions: "振込" })
+    assert.deepEqual(cart.lines.map((l) => l.productName), ["A", "B", "C"])
+    assert.equal(cart.total, 100 * 2 + 200 + 50 * 3)
+    assert.equal(cart.itemCount, 6)
     assert.equal(cart.hasProblems, true)
-    assert.equal(g1.lines[0].imageUrl, deps.storage.publicUrl("a/first.png"))
-    assert.equal(g1.lines[0].problem, null)
-    assert.equal(g1.lines[1].problem, "insufficient_stock")
-    assert.equal(g1.lines[1].imageUrl, null)
-    assert.equal(g2.lines[1].problem, "unavailable")
-    assert.equal(g2.lines[1].unitPrice, 10)
+    assert.equal(cart.lines[0].imageUrl, deps.storage.publicUrl("a/first.png"))
+    assert.equal(cart.lines[0].problem, null)
+    assert.equal(cart.lines[1].problem, "unavailable")
+    assert.equal(cart.lines[1].productPublished, false)
+    assert.equal(cart.lines[1].unitPrice, 200)
+    assert.equal(cart.lines[2].problem, "insufficient_stock")
+    assert.equal(cart.lines[2].imageUrl, null)
   })
 
-  it("flags unpublished stores as unavailable", async () => {
-    const s = await makeStore()
-    const p = await makeProduct(s.id)
+  it("flags every line as unavailable while the store is unpublished", async () => {
+    await makeStore()
+    const p = await makeProduct()
     await addToCart(deps, BUYER, p.id, 1)
     assert.equal((await getCart(deps, BUYER)).hasProblems, false)
-    await prisma.store.update({ where: { id: s.id }, data: { isPublished: false } })
+    await prisma.storeSettings.updateMany({ data: { isPublished: false } })
     const cart = await getCart(deps, BUYER)
-    assert.equal(cart.groups[0].lines[0].problem, "unavailable")
+    assert.equal(cart.store?.isPublished, false)
+    assert.equal(cart.lines[0].problem, "unavailable")
     assert.equal(cart.hasProblems, true)
-  })
-
-  it("reports whether stores and products are published so the page can avoid dead links", async () => {
-    const s1 = await makeStore()
-    const s2 = await makeStore()
-    const a = await makeProduct(s1.id, { name: "A" })
-    const b = await makeProduct(s1.id, { name: "B" })
-    const c = await makeProduct(s2.id, { name: "C" })
-    for (const p of [a, b, c]) await addToCart(deps, BUYER, p.id, 1)
-    await pinCartOrder(BUYER, [a.id, b.id, c.id])
-    await prisma.product.update({ where: { id: b.id }, data: { isPublished: false } })
-    await prisma.store.update({ where: { id: s2.id }, data: { isPublished: false } })
-    const [g1, g2] = (await getCart(deps, BUYER)).groups
-    assert.equal(g1.storePublished, true)
-    assert.deepEqual(g1.lines.map((l) => l.productPublished), [true, false])
-    assert.equal(g2.storePublished, false)
-    assert.deepEqual(g2.lines.map((l) => l.productPublished), [true])
   })
 
   it("does not show other buyers' items", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    await makeStore()
+    const p = await makeProduct()
     await addToCart(deps, OTHER, p.id, 2)
     assert.equal((await getCart(deps, BUYER)).itemCount, 0)
     assert.equal(await countCartItems(deps, BUYER), 0)
@@ -258,7 +250,8 @@ describe("cartVersion", () => {
   })
 
   it("changes in getCart with quantity and price but not with stock", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    await makeStore()
+    const p = await makeProduct()
     await addToCart(deps, BUYER, p.id, 1)
     const v1 = (await getCart(deps, BUYER)).version
     await prisma.product.update({ where: { id: p.id }, data: { stock: 4 } })
@@ -272,19 +265,22 @@ describe("cartVersion", () => {
 })
 
 describe("lineProblem", () => {
-  const base = { isPublished: true, stock: 3, store: { isPublished: true, ownerSub: "o" } }
+  const base = { isPublished: true, stock: 3 }
+  const store = { isPublished: true, ownerSub: "o" }
   it("applies precedence own_store > unavailable > insufficient_stock", () => {
-    assert.equal(lineProblem(base, 3, "b"), null)
-    assert.equal(lineProblem(base, 4, "b"), "insufficient_stock")
-    assert.equal(lineProblem({ ...base, isPublished: false }, 4, "b"), "unavailable")
-    assert.equal(lineProblem({ ...base, store: { isPublished: false, ownerSub: "o" } }, 1, "b"), "unavailable")
-    assert.equal(lineProblem({ ...base, isPublished: false }, 4, "o"), "own_store")
+    assert.equal(lineProblem(base, store, 3, "b"), null)
+    assert.equal(lineProblem(base, store, 4, "b"), "insufficient_stock")
+    assert.equal(lineProblem({ ...base, isPublished: false }, store, 4, "b"), "unavailable")
+    assert.equal(lineProblem(base, { ...store, isPublished: false }, 1, "b"), "unavailable")
+    assert.equal(lineProblem(base, null, 1, "b"), "unavailable")
+    assert.equal(lineProblem({ ...base, isPublished: false }, store, 4, "o"), "own_store")
   })
 })
 
 describe("setCartQuantity / removeFromCart", () => {
   async function seed() {
-    const p = await makeProduct((await makeStore()).id, { stock: 9 })
+    await makeStore()
+    const p = await makeProduct({ stock: 9 })
     await addToCart(deps, BUYER, p.id, 2)
     return prisma.cartItem.findFirstOrThrow({ where: { buyerSub: BUYER } })
   }
@@ -365,7 +361,8 @@ describe("setCartQuantity / removeFromCart", () => {
 
 describe("product deletion", () => {
   it("removes cart rows when the product is deleted", async () => {
-    const p = await makeProduct((await makeStore()).id)
+    await makeStore()
+    const p = await makeProduct()
     await addToCart(deps, BUYER, p.id, 1)
     await prisma.product.delete({ where: { id: p.id } })
     assert.equal(await rowCount(), 0)

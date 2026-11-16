@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test"
-import { login } from "./helpers"
+import { login, resetDatabase } from "./helpers"
 
-const SLUG = "e2e-sweets"
 const PRODUCT = "いちごキャンディ"
 
 // minimal buffer with a valid PNG signature; `seed` makes the two files differ
@@ -12,11 +11,12 @@ function png(seed: number) {
   ])
 }
 
+test.beforeEach(resetDatabase)
+
 test("商品を作って公開し、削除する", async ({ page, browser, baseURL }) => {
   await login(page, baseURL)
 
   // store: create and publish
-  await page.getByLabel("ストア ID").fill(SLUG)
   await page.getByLabel("ストア名").fill("E2E スイーツ")
   await page.getByRole("button", { name: "作成する" }).click()
   await expect(page.getByRole("heading", { name: "ストアを編集" })).toBeVisible()
@@ -55,7 +55,7 @@ test("商品を作って公開し、削除する", async ({ page, browser, baseU
   // logged-out visitor sees the product in the store and on its detail page
   const visitor = await browser.newContext()
   const visitorPage = await visitor.newPage()
-  await visitorPage.goto(`${baseURL}/s/${SLUG}`)
+  await visitorPage.goto(`${baseURL}/`)
   await expect(visitorPage.getByText(PRODUCT)).toBeVisible()
   await expect(visitorPage.getByText("¥1,200")).toBeVisible()
   await visitorPage.getByRole("link", { name: /いちごキャンディ/ }).click()
@@ -63,6 +63,7 @@ test("商品を作って公開し、削除する", async ({ page, browser, baseU
   await expect(visitorPage.getByText("在庫 3 点")).toBeVisible()
   await expect(visitorPage.getByRole("button", { name: /^画像 \d+ を表示$/ })).toHaveCount(2)
   const detailUrl = visitorPage.url()
+  expect(detailUrl).toMatch(/\/products\/[0-9a-f-]{36}$/)
 
   // stock to 0 -> sold out
   await page.getByLabel("在庫数").fill("0")
@@ -82,11 +83,4 @@ test("商品を作って公開し、削除する", async ({ page, browser, baseU
   expect(gone?.status()).toBe(404)
   await expect(visitorPage.getByRole("heading", { name: "商品が見つかりません" })).toBeVisible()
   await visitor.close()
-
-  // cleanup: delete the store
-  await page.goto("/dashboard")
-  await page.getByLabel("確認のためストア ID を入力").fill(SLUG)
-  await page.getByRole("button", { name: "削除する" }).click()
-  await page.getByRole("alertdialog").getByRole("button", { name: "削除する" }).click()
-  await expect(page.getByRole("heading", { name: "ストアを作成" })).toBeVisible()
 })

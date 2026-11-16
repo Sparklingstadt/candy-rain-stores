@@ -3,7 +3,7 @@ import test from "node:test"
 import { safeReturnTo } from "./safeReturnTo"
 
 test("keeps same-site paths", () => {
-  assert.equal(safeReturnTo("/s/a/products/b"), "/s/a/products/b")
+  assert.equal(safeReturnTo("/products/b"), "/products/b")
   assert.equal(safeReturnTo("/cart"), "/cart")
 })
 

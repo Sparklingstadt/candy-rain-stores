@@ -7,15 +7,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSub } from "@/lib/session"
 import { deps } from "@/services/deps"
 import { countReceivedOrders } from "@/services/orderService"
-import { getOwnStore } from "@/services/storeService"
+import { getOwnStore, getStore } from "@/services/storeService"
 import { setPublishedAction } from "./actions"
-import { DeleteStoreForm } from "./DeleteStoreForm"
 import { StoreForm } from "./StoreForm"
 
 export default async function DashboardPage() {
   const sub = await requireSub()
   const store = await getOwnStore(deps(), sub)
   const receivedCount = store ? await countReceivedOrders(deps(), sub) : 0
+  // お店はサイトに 1 つだけ。ほかの人がすでに作っていれば、ここでは何もできない
+  if (!store && (await getStore(deps()))) {
+    return (
+      <DashboardShell embedded title="お店はすでにあります" active="home">
+        <p className="text-muted-foreground max-w-xl text-sm leading-7">
+          このサイトのお店は、すでにほかの方が開いています。お買い物は<Link href="/" className="text-primary underline underline-offset-4">お店のページ</Link>からどうぞ。
+        </p>
+      </DashboardShell>
+    )
+  }
 
   return (
     <DashboardShell
@@ -23,7 +32,7 @@ export default async function DashboardPage() {
       title={store ? "今日のお店" : "お店をはじめましょう"}
       description={store ? "届いた注文を確認して、今日もあなたのペースで。" : "好きなものを届ける、あなただけの小さなお店をつくりましょう。"}
       storeName={store?.name}
-      storeHref={store ? `/s/${store.slug}` : undefined}
+      storeHref={store ? "/" : undefined}
       active="home"
     >
       {store === null ? (
@@ -49,12 +58,12 @@ export default async function DashboardPage() {
                 <CardTitle><h2 className="text-xl leading-snug font-semibold break-words">{store.name}</h2></CardTitle>
                 <p className="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
                   <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full border" style={{ backgroundColor: store.themeColor }} />
-                  /s/{store.slug}
+                  テーマカラー
                 </p>
               </CardHeader>
               <CardContent className="flex flex-wrap items-center gap-2">
                 <Button asChild variant="outline" className="rounded-full">
-                  <Link href={`/s/${store.slug}`}>ストアをプレビュー</Link>
+                  <Link href="/">ストアをプレビュー</Link>
                 </Button>
                 <form action={setPublishedAction}>
                   <input type="hidden" name="publish" value={store.isPublished ? "false" : "true"} />
@@ -95,7 +104,6 @@ export default async function DashboardPage() {
           <section id="store-settings" className="scroll-mt-8 pt-4">
             <StoreForm
               store={{
-                slug: store.slug,
                 name: store.name,
                 description: store.description,
                 themeColor: store.themeColor,
@@ -106,7 +114,6 @@ export default async function DashboardPage() {
               }}
             />
           </section>
-          <div className="border-t pt-7"><DeleteStoreForm slug={store.slug} /></div>
         </>
       )}
     </DashboardShell>
