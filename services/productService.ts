@@ -9,21 +9,17 @@ import {
   type StoreView,
 } from "./storeService"
 import type { StoreDeps } from "./deps"
+import { isUuid } from "../lib/uuid"
 
 export type ProductImageView = { id: string; url: string; sortOrder: number }
 export type ProductView = Product & { images: ProductImageView[] }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const withImages = {
   images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
 } satisfies Prisma.ProductInclude
 
 type ProductWithImages = Product & { images: ProductImage[] }
-
-export function isUuid(value: string): boolean {
-  return UUID_PATTERN.test(value)
-}
 
 function toProductView(deps: StoreDeps, product: ProductWithImages): ProductView {
   return {

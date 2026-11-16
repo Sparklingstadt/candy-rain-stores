@@ -3,7 +3,7 @@ import type { Order, OrderItem, Prisma } from "../generated/prisma/client"
 import type { ShippingInfo } from "../lib/orderValidation"
 import { canTransition, ORDER_STATUSES, PAYMENT_DEADLINE_DAYS, type OrderStatus } from "../lib/orderStatus"
 import { cartVersion, lineProblem, lockCart, type CartLineProblem } from "./cartService"
-import { isUuid } from "./productService"
+import { isUuid } from "../lib/uuid"
 import type { StoreDeps } from "./deps"
 
 export type Buyer = { sub: string; name: string; email: string }

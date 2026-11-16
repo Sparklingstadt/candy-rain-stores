@@ -12,7 +12,6 @@ import {
   deleteProduct,
   getOwnProduct,
   getProductForViewer,
-  isUuid,
   listOtherProducts,
   listOwnProducts,
   listProductsForStorePage,
@@ -63,15 +62,6 @@ async function setCreatedAt(productId: string, minutesAgo: number) {
     data: { createdAt: new Date(Date.UTC(2026, 0, 1, 12, 0) - minutesAgo * 60_000) },
   })
 }
-
-describe("isUuid", () => {
-  it("accepts UUIDs case-insensitively and rejects others", () => {
-    assert.equal(isUuid(randomUUID()), true)
-    assert.equal(isUuid(randomUUID().toUpperCase()), true)
-    assert.equal(isUuid("abc"), false)
-    assert.equal(isUuid(""), false)
-  })
-})
 
 describe("createProduct / listOwnProducts", () => {
   it("creates an unpublished product and lists newest first", async () => {

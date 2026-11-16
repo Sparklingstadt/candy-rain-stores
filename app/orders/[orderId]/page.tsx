@@ -11,7 +11,7 @@ import { formatPrice } from "@/lib/formatPrice"
 import { formatOrderDate, orderNumber, PAYMENT_DEADLINE_DAYS, paymentDeadline } from "@/lib/orderStatus"
 import { requireBuyer } from "@/lib/session"
 import { getBuyerOrder } from "@/services/orderService"
-import { isUuid } from "@/services/productService"
+import { isUuid } from "@/lib/uuid"
 
 export const metadata: Metadata = { title: "注文の詳細" }
 
