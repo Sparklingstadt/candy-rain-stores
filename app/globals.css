@@ -1,77 +1,73 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant dark (&:where(.dark, .dark *));
 
+/* Soft Atelier: warm paper, rose accents, and readable ink. */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: light;
+  --radius: 1.1rem;
+  --background: #fffaf6;
+  --foreground: #4b3439;
+  --card: #fffdfb;
+  --card-foreground: #4b3439;
+  --popover: #fffdfb;
+  --popover-foreground: #4b3439;
+  --primary: #a53962;
+  --primary-foreground: #ffffff;
+  --secondary: #f4e2e7;
+  --secondary-foreground: #713448;
+  --muted: #f4eee8;
+  --muted-foreground: #79656a;
+  --accent: #f3dce1;
+  --accent-foreground: #713448;
+  --destructive: #b52c36;
+  --border: #eaddd8;
+  --input: #d8c6c2;
+  --ring: #a53962;
+  --chart-1: #a53962;
+  --chart-2: #637e68;
+  --chart-3: #b27d48;
+  --chart-4: #987c9e;
+  --chart-5: #7a9595;
+  --sidebar: #fffdfb;
+  --sidebar-foreground: #4b3439;
+  --sidebar-primary: #a53962;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4e2e7;
+  --sidebar-accent-foreground: #713448;
+  --sidebar-border: #eaddd8;
+  --sidebar-ring: #a53962;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
+.dark {
+  color-scheme: dark;
+  --background: #251d21;
+  --foreground: #f8eeeb;
+  --card: #30262b;
+  --card-foreground: #f8eeeb;
+  --popover: #30262b;
+  --popover-foreground: #f8eeeb;
+  --primary: #e8a3ba;
+  --primary-foreground: #3b1725;
+  --secondary: #46303a;
+  --secondary-foreground: #f5d8e2;
+  --muted: #3a2e34;
+  --muted-foreground: #c8afb7;
+  --accent: #503542;
+  --accent-foreground: #f5d8e2;
+  --destructive: #ff9a9f;
+  --border: #57424b;
+  --input: #6b515c;
+  --ring: #e8a3ba;
+  --sidebar: #30262b;
+  --sidebar-foreground: #f8eeeb;
+  --sidebar-primary: #e8a3ba;
+  --sidebar-primary-foreground: #3b1725;
+  --sidebar-accent: #46303a;
+  --sidebar-accent-foreground: #f5d8e2;
+  --sidebar-border: #57424b;
+  --sidebar-ring: #e8a3ba;
 }
 
 @theme inline {
@@ -118,5 +114,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    line-height: 1.7;
+  }
+  button, input, textarea, select { font: inherit; }
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+  h1, h2, h3 { text-wrap: balance; }
+  :target { scroll-margin-top: 2rem; }
+  ::selection { background: #f3dce1; color: #4b3439; }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
   }
 }
