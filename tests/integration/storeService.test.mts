@@ -12,8 +12,8 @@ import {
   listPublishedStores,
   setPublished,
   updateStore,
-  type StoreDeps,
 } from "../../services/storeService"
+import type { StoreDeps } from "../../services/deps"
 
 const fields = { name: "あめ屋", description: "かわいい", themeColor: "#112233" }
 const png = (n = 1) => ({
@@ -187,7 +187,7 @@ describe("deleteStore", () => {
 
   it("deletes the row and images, freeing the slug", async () => {
     await create("a", "shop-a", png())
-    assert.deepEqual(await deleteStore(deps, "a", " SHOP-A "), { ok: true })
+    assert.deepEqual(await deleteStore(deps, "a", " SHOP-A "), { ok: true, slug: "shop-a" })
     assert.equal(await prisma.store.count(), 0)
     assert.equal(storage.files.size, 0)
     const r = await createStore(deps, "b", { slug: "shop-a", fields, logo: null, header: null })
@@ -206,7 +206,7 @@ describe("deleteStore with products", () => {
       assert.equal((await addProductImage(deps, "a", r.product.id, png(3))).ok, true)
     }
     assert.equal(storage.files.size, 5)
-    assert.deepEqual(await deleteStore(deps, "a", "shop-a"), { ok: true })
+    assert.deepEqual(await deleteStore(deps, "a", "shop-a"), { ok: true, slug: "shop-a" })
     assert.equal(await prisma.product.count(), 0)
     assert.equal(await prisma.productImage.count(), 0)
     assert.equal(storage.files.size, 0)
@@ -248,7 +248,7 @@ describe("deleteStore with orders", () => {
     const store = await create("a", "shop-a")
     const shipped = await makeOrder(store.id, "SHIPPED")
     const canceled = await makeOrder(store.id, "CANCELED")
-    assert.deepEqual(await deleteStore(deps, "a", "shop-a"), { ok: true })
+    assert.deepEqual(await deleteStore(deps, "a", "shop-a"), { ok: true, slug: "shop-a" })
     assert.equal(await prisma.store.count(), 0)
     for (const o of [shipped, canceled]) {
       const row = await prisma.order.findUniqueOrThrow({ where: { id: o.id } })

@@ -3,9 +3,9 @@ import { SignOutButton } from "@/app/components/SignOutButton"
 import { UserMenu } from "@/app/components/UserMenu"
 import { readableTextColor } from "@/lib/color"
 import { getBuyer, requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { countReceivedOrders } from "@/services/orderService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "./deps"
 import { DashboardNav } from "./DashboardNav"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

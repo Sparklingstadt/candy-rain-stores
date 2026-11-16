@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { Prisma } from "../generated/prisma/client"
-import type { PrismaClient, Store } from "../generated/prisma/client"
+import type { Store } from "../generated/prisma/client"
 import type { ImageStorage } from "../lib/imageStorage"
 import {
   normalizeSlug,
@@ -9,8 +9,8 @@ import {
   type ImageType,
   type StoreFields,
 } from "../lib/storeValidation"
+import type { StoreDeps } from "./deps"
 
-export type StoreDeps = { db: PrismaClient; storage: ImageStorage }
 export type ImageInput = (ImageType & { bytes: Uint8Array }) | null // null = 変更なし
 export type StoreView = Store & { logoUrl: string | null; headerUrl: string | null }
 export type CreateResult =
@@ -219,7 +219,7 @@ export async function deleteStore(
   deps: StoreDeps,
   ownerSub: string,
   confirmSlug: string,
-): Promise<{ ok: true } | { ok: false; code: "not_found" | "confirm_mismatch" | "has_open_orders" }> {
+): Promise<{ ok: true; slug: string } | { ok: false; code: "not_found" | "confirm_mismatch" | "has_open_orders" }> {
   const store = await deps.db.store.findUnique({ where: { ownerSub } })
   if (!store) return { ok: false, code: "not_found" }
   if (normalizeSlug(confirmSlug) !== store.slug) return { ok: false, code: "confirm_mismatch" }
@@ -243,5 +243,5 @@ export async function deleteStore(
   })
   if (!outcome) return { ok: false, code: "has_open_orders" }
   await removeQuietly(deps.storage, [store.logoPath, store.headerPath, ...outcome.map((i) => i.path)])
-  return { ok: true }
+  return { ok: true, slug: store.slug }
 }

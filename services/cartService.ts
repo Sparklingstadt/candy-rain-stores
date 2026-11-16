@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto"
 import type { Prisma } from "../generated/prisma/client"
 import { MAX_CART_ITEMS, MAX_QUANTITY, parseQuantity } from "../lib/orderValidation"
-import { isUuid } from "./productService"
-import type { StoreDeps } from "./storeService"
+import { isUuid } from "../lib/uuid"
+import type { StoreDeps } from "./deps"
 
 export type CartLineProblem = "unavailable" | "insufficient_stock" | "own_store"
 export type CartLine = {

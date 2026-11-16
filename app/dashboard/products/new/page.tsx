@@ -2,8 +2,8 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "../../deps"
 import { ProductForm } from "../ProductForm"
 
 export default async function NewProductPage() {

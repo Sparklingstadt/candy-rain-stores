@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { notFound, redirect } from "next/navigation"
+import { SAVE_FAILED, text } from "@/lib/formData"
 import {
   MAX_IMAGES_PER_PRODUCT,
   MAX_PRODUCTS_PER_STORE,
@@ -10,6 +11,7 @@ import {
   type ProductFieldErrors,
 } from "@/lib/productValidation"
 import { requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import {
   addProductImage,
   createProduct,
@@ -20,7 +22,6 @@ import {
   updateProduct,
 } from "@/services/productService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "../deps"
 import { readImageField } from "../formImage"
 
 export type ProductFormState = {
@@ -30,15 +31,9 @@ export type ProductFormState = {
   saved?: boolean
 }
 
-const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
 const PRODUCT_LIMIT = `商品は ${MAX_PRODUCTS_PER_STORE} 件までです`
 const IMAGE_LIMIT = `画像は ${MAX_IMAGES_PER_PRODUCT} 枚までです`
 const STOCK_CHANGED = "在庫が注文で変わりました。画面を更新してください"
-
-function text(formData: FormData, name: string): string {
-  const value = formData.get(name)
-  return typeof value === "string" ? value : ""
-}
 
 async function revalidateProduct(sub: string, productId: string) {
   revalidatePath("/dashboard/products")

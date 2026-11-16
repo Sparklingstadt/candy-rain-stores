@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { deps } from "@/app/dashboard/deps"
 import { OrderStatusBadge } from "@/app/components/OrderStatusBadge"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Button } from "@/components/ui/button"
@@ -10,8 +9,9 @@ import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/formatPrice"
 import { formatOrderDate, orderNumber, PAYMENT_DEADLINE_DAYS, paymentDeadline } from "@/lib/orderStatus"
 import { requireBuyer } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { getBuyerOrder } from "@/services/orderService"
-import { isUuid } from "@/services/productService"
+import { isUuid } from "@/lib/uuid"
 
 export const metadata: Metadata = { title: "注文の詳細" }
 

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto"
 import { prisma } from "../../lib/prisma"
 import { assertResettableDatabase } from "../assertResettableDatabase"
 import { MemoryImageStorage } from "../../lib/imageStorage"
-import type { StoreDeps } from "../../services/storeService"
+import type { StoreDeps } from "../../services/deps"
 import {
   addToCart,
   cartVersion,

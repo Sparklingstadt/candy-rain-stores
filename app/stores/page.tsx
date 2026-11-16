@@ -1,11 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
-import { deps } from "@/app/dashboard/deps"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { readableTextColor } from "@/lib/color"
+import { deps } from "@/services/deps"
 import { listPublishedStores } from "@/services/storeService"
 
 export const metadata: Metadata = { title: "ストア一覧" }

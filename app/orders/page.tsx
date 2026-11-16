@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { deps } from "@/app/dashboard/deps"
 import { CircleCheckIcon } from "lucide-react"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -9,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { formatPrice } from "@/lib/formatPrice"
 import { formatOrderDate, orderNumber } from "@/lib/orderStatus"
 import { requireBuyer } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { listBuyerOrders } from "@/services/orderService"
 
 export const metadata: Metadata = { title: "注文履歴" }

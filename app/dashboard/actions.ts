@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
+import { SAVE_FAILED, text } from "@/lib/formData"
 import { requireSub } from "@/lib/session"
 import { validateSlug, validateStoreFields, type FieldErrors } from "@/lib/storeValidation"
+import { deps } from "@/services/deps"
 import {
   createStore,
   deleteStore,
@@ -12,7 +13,6 @@ import {
   updateStore,
   type ImageInput,
 } from "@/services/storeService"
-import { deps } from "./deps"
 import { readImageField } from "./formImage"
 
 export type StoreFormState = {
@@ -27,13 +27,6 @@ export type StoreFormState = {
   }
   message?: string
   saved?: boolean
-}
-
-const SAVE_FAILED = "保存できませんでした。時間をおいてもう一度お試しください。"
-
-function text(formData: FormData, name: string): string {
-  const value = formData.get(name)
-  return typeof value === "string" ? value : ""
 }
 
 // Validates everything the service trusts: text fields and both image uploads.
@@ -141,7 +134,6 @@ export async function deleteStoreAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
   const sub = await requireSub()
-  const store = await prisma.store.findUnique({ where: { ownerSub: sub }, select: { slug: true } })
   const result = await deleteStore(deps(), sub, text(formData, "confirmSlug"))
   if (!result.ok && result.code === "confirm_mismatch") {
     return { error: "ストア ID が一致しません" }
@@ -150,6 +142,6 @@ export async function deleteStoreAction(
     return { error: "対応中の注文があるため削除できません" }
   }
   revalidatePath("/dashboard")
-  if (store) revalidatePath("/s/" + store.slug)
+  if (result.ok) revalidatePath("/s/" + result.slug)
   return {}
 }

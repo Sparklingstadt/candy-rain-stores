@@ -8,10 +8,10 @@ import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/formatPrice"
 import { formatOrderDate, nextOwnerStatuses, orderNumber, paymentDeadline } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { getStoreOrder } from "@/services/orderService"
-import { isUuid } from "@/services/productService"
+import { isUuid } from "@/lib/uuid"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "../../deps"
 import { OrderStatusButtons } from "../OrderStatusButtons"
 
 export const metadata: Metadata = { title: "注文の詳細" }
