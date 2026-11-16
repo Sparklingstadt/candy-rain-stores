@@ -17,14 +17,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <DashboardShell
       title=""
       active="home"
-      brandHref="/stores"
+      brandHref="/"
       showPageHeader={false}
       showNavigation={store !== null}
       accountAction={<><SignOutButton />{buyer && <UserMenu name={buyer.name.trim()} email={buyer.email} image={buyer.image} />}</>}
       navigation={store ? (
         <DashboardNav
           storeName={store.name}
-          slug={store.slug}
           isPublished={store.isPublished}
           logoUrl={store.logoUrl}
           themeColor={store.themeColor}

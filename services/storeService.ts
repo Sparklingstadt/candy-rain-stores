@@ -1,41 +1,25 @@
 import { randomUUID } from "node:crypto"
 import { Prisma } from "../generated/prisma/client"
-import type { Store } from "../generated/prisma/client"
+import type { StoreSettings } from "../generated/prisma/client"
 import type { ImageStorage } from "../lib/imageStorage"
-import {
-  normalizeSlug,
-  validateSlug,
-  type FieldErrors,
-  type ImageType,
-  type StoreFields,
-} from "../lib/storeValidation"
+import type { FieldErrors, ImageType, StoreFields } from "../lib/storeValidation"
 import type { StoreDeps } from "./deps"
 
 export type ImageInput = (ImageType & { bytes: Uint8Array }) | null // null = 変更なし
-export type StoreView = Store & { logoUrl: string | null; headerUrl: string | null }
+export type StoreView = StoreSettings & { logoUrl: string | null; headerUrl: string | null }
 export type CreateResult =
   | { ok: true; store: StoreView }
   | { ok: false; code: "invalid"; errors: FieldErrors }
-  | { ok: false; code: "already_has_store" }
+  | { ok: false; code: "already_exists" } // お店はサイトに 1 つだけ。すでに誰かが作っている
 export type UpdateResult =
   | { ok: true; store: StoreView }
   | { ok: false; code: "invalid"; errors: FieldErrors }
   | { ok: false; code: "not_found" }
 
-export type StoreCard = {
-  id: string
-  slug: string
-  name: string
-  description: string | null
-  themeColor: string
-  logoUrl: string | null
-  headerUrl: string | null
-  publishedProductCount: number
-}
+// StoreSettings はこの 1 行だけ（SQL の CHECK 制約でも 2 行目を作れない）
+export const STORE_ID = 1
 
-const SLUG_TAKEN = "このストア ID はすでに使われています"
-
-export function toView(storage: ImageStorage, store: Store): StoreView {
+export function toView(storage: ImageStorage, store: StoreSettings): StoreView {
   return {
     ...store,
     logoUrl: store.logoPath ? storage.publicUrl(store.logoPath) : null,
@@ -43,18 +27,17 @@ export function toView(storage: ImageStorage, store: Store): StoreView {
   }
 }
 
-function imagePath(storeId: string, kind: "logo" | "header", image: ImageType): string {
-  return `${storeId}/${kind}-${randomUUID()}.${image.ext}`
+function imagePath(kind: "logo" | "header", image: ImageType): string {
+  return `store/${kind}-${randomUUID()}.${image.ext}`
 }
 
 async function putImage(
   storage: ImageStorage,
-  storeId: string,
   kind: "logo" | "header",
   image: NonNullable<ImageInput>,
   uploaded: string[],
 ): Promise<string> {
-  const path = imagePath(storeId, kind, image)
+  const path = imagePath(kind, image)
   await storage.put(path, image.bytes, image.contentType)
   uploaded.push(path)
   return path
@@ -70,90 +53,57 @@ export async function removeQuietly(storage: ImageStorage, paths: (string | null
   }
 }
 
-function uniqueTargets(error: Prisma.PrismaClientKnownRequestError): string {
-  const meta = error.meta as { target?: unknown; driverAdapterError?: unknown } | undefined
-  // The target is a field list (or constraint name) depending on the driver; fall back to the raw meta.
-  return JSON.stringify(meta?.target ?? meta ?? "")
-}
-
-export async function getOwnStore(deps: StoreDeps, ownerSub: string): Promise<StoreView | null> {
-  const store = await deps.db.store.findUnique({ where: { ownerSub } })
+// サイトのお店。まだ作られていなければ null
+export async function getStore(deps: StoreDeps): Promise<StoreView | null> {
+  const store = await deps.db.storeSettings.findUnique({ where: { id: STORE_ID } })
   return store ? toView(deps.storage, store) : null
 }
 
+// ownerSub がお店のオーナーならお店を返す
+export async function getOwnStore(deps: StoreDeps, ownerSub: string): Promise<StoreView | null> {
+  const store = await getStore(deps)
+  return store && store.ownerSub === ownerSub ? store : null
+}
+
+export async function isStoreOwner(deps: StoreDeps, ownerSub: string): Promise<boolean> {
+  const store = await deps.db.storeSettings.findUnique({ where: { id: STORE_ID }, select: { ownerSub: true } })
+  return store?.ownerSub === ownerSub
+}
+
+// 公開中なら誰でも見られる。非公開ならオーナー本人にだけプレビューとして見せる
 export async function getStoreForViewer(
   deps: StoreDeps,
-  slug: string,
   viewerSub: string | null,
 ): Promise<{ store: StoreView; isOwnerPreview: boolean } | null> {
-  const store = await deps.db.store.findUnique({ where: { slug: normalizeSlug(slug) } })
+  const store = await getStore(deps)
   if (!store) return null
-  if (store.isPublished) return { store: toView(deps.storage, store), isOwnerPreview: false }
-  if (viewerSub !== null && viewerSub === store.ownerSub) {
-    return { store: toView(deps.storage, store), isOwnerPreview: true }
-  }
+  if (store.isPublished) return { store, isOwnerPreview: false }
+  if (viewerSub !== null && viewerSub === store.ownerSub) return { store, isOwnerPreview: true }
   return null
 }
 
-// Published stores, newest first. page is 1-based; one extra row tells whether a next page exists.
-export async function listPublishedStores(
-  deps: StoreDeps,
-  page: number,
-  pageSize: number,
-): Promise<{ stores: StoreCard[]; hasNext: boolean }> {
-  const rows = await deps.db.store.findMany({
-    where: { isPublished: true },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    skip: (page - 1) * pageSize,
-    take: pageSize + 1,
-    include: { _count: { select: { products: { where: { isPublished: true } } } } },
-  })
-  const stores = rows.slice(0, pageSize).map(({ _count, ...store }) => {
-    const view = toView(deps.storage, store)
-    return {
-      id: view.id,
-      slug: view.slug,
-      name: view.name,
-      description: view.description,
-      themeColor: view.themeColor,
-      logoUrl: view.logoUrl,
-      headerUrl: view.headerUrl,
-      publishedProductCount: _count.products,
-    }
-  })
-  return { stores, hasNext: rows.length > pageSize }
-}
-
+// お店がまだなければ作り、作った人がオーナーになる。すでにあれば作らない
 export async function createStore(
   deps: StoreDeps,
   ownerSub: string,
-  input: { slug: string; fields: StoreFields; logo: ImageInput; header: ImageInput },
+  input: { fields: StoreFields; logo: ImageInput; header: ImageInput },
 ): Promise<CreateResult> {
-  const slugResult = validateSlug(input.slug)
-  if (!slugResult.ok) return { ok: false, code: "invalid", errors: { slug: slugResult.error } }
+  const existing = await deps.db.storeSettings.findUnique({ where: { id: STORE_ID }, select: { id: true } })
+  if (existing) return { ok: false, code: "already_exists" }
 
-  const existing = await deps.db.store.findUnique({ where: { ownerSub }, select: { id: true } })
-  if (existing) return { ok: false, code: "already_has_store" }
-
-  const id = randomUUID()
   const uploaded: string[] = []
   try {
-    const logoPath = input.logo ? await putImage(deps.storage, id, "logo", input.logo, uploaded) : null
-    const headerPath = input.header
-      ? await putImage(deps.storage, id, "header", input.header, uploaded)
-      : null
-    const store = await deps.db.store.create({
-      data: { id, ownerSub, slug: slugResult.slug, ...input.fields, logoPath, headerPath },
+    const logoPath = input.logo ? await putImage(deps.storage, "logo", input.logo, uploaded) : null
+    const headerPath = input.header ? await putImage(deps.storage, "header", input.header, uploaded) : null
+    const store = await deps.db.storeSettings.create({
+      data: { id: STORE_ID, ownerSub, ...input.fields, logoPath, headerPath },
     })
     return { ok: true, store: toView(deps.storage, store) }
   } catch (error) {
     await removeQuietly(deps.storage, uploaded)
+    // 同時に作られた
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const target = uniqueTargets(error)
-      if (target.includes("ownerSub")) return { ok: false, code: "already_has_store" }
-      if (target.includes("slug")) {
-        return { ok: false, code: "invalid", errors: { slug: SLUG_TAKEN } }
-      }
+      return { ok: false, code: "already_exists" }
     }
     throw error
   }
@@ -170,21 +120,19 @@ export async function updateStore(
     removeHeader: boolean
   },
 ): Promise<UpdateResult> {
-  const current = await deps.db.store.findUnique({ where: { ownerSub } })
-  if (!current) return { ok: false, code: "not_found" }
+  const current = await deps.db.storeSettings.findUnique({ where: { id: STORE_ID } })
+  if (!current || current.ownerSub !== ownerSub) return { ok: false, code: "not_found" }
 
   const uploaded: string[] = []
   try {
-    const newLogo = input.logo ? await putImage(deps.storage, current.id, "logo", input.logo, uploaded) : null
-    const newHeader = input.header
-      ? await putImage(deps.storage, current.id, "header", input.header, uploaded)
-      : null
+    const newLogo = input.logo ? await putImage(deps.storage, "logo", input.logo, uploaded) : null
+    const newHeader = input.header ? await putImage(deps.storage, "header", input.header, uploaded) : null
 
     const logoPath = newLogo ?? (input.removeLogo ? null : current.logoPath)
     const headerPath = newHeader ?? (input.removeHeader ? null : current.headerPath)
 
-    const store = await deps.db.store.update({
-      where: { ownerSub },
+    const store = await deps.db.storeSettings.update({
+      where: { id: STORE_ID, ownerSub },
       data: { ...input.fields, logoPath, headerPath },
     })
     await removeQuietly(deps.storage, [
@@ -207,41 +155,10 @@ export async function setPublished(
   isPublished: boolean,
 ): Promise<StoreView | null> {
   try {
-    const store = await deps.db.store.update({ where: { ownerSub }, data: { isPublished } })
+    const store = await deps.db.storeSettings.update({ where: { id: STORE_ID, ownerSub }, data: { isPublished } })
     return toView(deps.storage, store)
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") return null
     throw error
   }
-}
-
-export async function deleteStore(
-  deps: StoreDeps,
-  ownerSub: string,
-  confirmSlug: string,
-): Promise<{ ok: true; slug: string } | { ok: false; code: "not_found" | "confirm_mismatch" | "has_open_orders" }> {
-  const store = await deps.db.store.findUnique({ where: { ownerSub } })
-  if (!store) return { ok: false, code: "not_found" }
-  if (normalizeSlug(confirmSlug) !== store.slug) return { ok: false, code: "confirm_mismatch" }
-
-  const outcome = await deps.db.$transaction(async (tx) => {
-    // 商品行を placeOrder と同じ ID 順でロックしてから数える。確定中の注文はここで待つか、
-    // 先に確定していれば数に入る（数えた後に対応中の注文が増えることはない）
-    await tx.$queryRaw`SELECT id FROM "Product" WHERE "storeId" = ${store.id}::uuid ORDER BY id FOR UPDATE`
-    const openOrders = await tx.order.count({
-      where: { storeId: store.id, status: { in: ["RECEIVED", "PAID"] } },
-    })
-    if (openOrders > 0) return null
-
-    // Product rows (and their image rows) cascade with the store, so collect the file paths first.
-    const productImages = await tx.productImage.findMany({
-      where: { product: { storeId: store.id } },
-      select: { path: true },
-    })
-    await tx.store.deleteMany({ where: { id: store.id, ownerSub } })
-    return productImages
-  })
-  if (!outcome) return { ok: false, code: "has_open_orders" }
-  await removeQuietly(deps.storage, [store.logoPath, store.headerPath, ...outcome.map((i) => i.path)])
-  return { ok: true, slug: store.slug }
 }

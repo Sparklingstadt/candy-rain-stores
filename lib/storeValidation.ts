@@ -4,7 +4,6 @@ export const DEFAULT_THEME_COLOR = "#e85d8f"
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
 export type StoreField =
-  | "slug"
   | "name"
   | "description"
   | "themeColor"
@@ -21,30 +20,11 @@ export type StoreFields = {
   contactEmail?: string | null // 省略すると変更しない
 }
 
-const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/
 const NAME_MAX = 50
 const DESCRIPTION_MAX = 500
 const EMAIL_MAX = 254
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-export function normalizeSlug(raw: string): string {
-  return raw.trim().toLowerCase()
-}
-
-export function validateSlug(
-  raw: string,
-): { ok: true; slug: string } | { ok: false; error: string } {
-  const slug = normalizeSlug(raw)
-  if (!SLUG_PATTERN.test(slug)) {
-    return {
-      ok: false,
-      error:
-        "ストア ID は英小文字・数字・ハイフンで 3〜30 文字にしてください（先頭と末尾にハイフンは使えません）",
-    }
-  }
-  return { ok: true, slug }
-}
 
 export function validateStoreFields(raw: {
   name: string

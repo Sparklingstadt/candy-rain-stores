@@ -4,7 +4,7 @@ import { CircleAlertIcon } from "lucide-react"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { formatPrice } from "@/lib/formatPrice"
 import { requireBuyer } from "@/lib/session"
@@ -50,72 +50,69 @@ export default async function CartPage({
             </AlertDescription>
           </Alert>
         )}
-        {cart.groups.length === 0 ? (
+        {cart.lines.length === 0 ? (
           <p>カートは空です</p>
         ) : (
           <>
-            {cart.groups.map((group) => (
-              <Card key={group.storeId}>
+            <Card>
+              {cart.store && (
                 <CardHeader>
                   <CardTitle>
                     <h2 className="text-lg font-bold">
-                      {group.storePublished ? (
-                        <Link href={`/s/${group.storeSlug}`} className="underline underline-offset-4">
-                          {group.storeName}
+                      {cart.store.isPublished ? (
+                        <Link href="/" className="underline underline-offset-4">
+                          {cart.store.name}
                         </Link>
                       ) : (
-                        group.storeName
+                        cart.store.name
                       )}
                     </h2>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <ul className="divide-y">
-                    {group.lines.map((line) => {
-                      const problem = problemText(line)
-                      return (
-                        <li key={line.itemId} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                          {line.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={line.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" />
+              )}
+              <CardContent>
+                <ul className="divide-y">
+                  {cart.lines.map((line) => {
+                    const problem = problemText(line)
+                    return (
+                      <li key={line.itemId} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                        {line.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={line.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-md object-cover" />
+                        ) : (
+                          <div className="bg-muted h-16 w-16 shrink-0 rounded-md" />
+                        )}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          {cart.store?.isPublished && line.productPublished ? (
+                            <Link
+                              href={`/products/${line.productId}`}
+                              className="font-bold underline underline-offset-4"
+                            >
+                              {line.productName}
+                            </Link>
                           ) : (
-                            <div className="bg-muted h-16 w-16 shrink-0 rounded-md" />
+                            <span className="font-bold">{line.productName}</span>
                           )}
-                          <div className="min-w-0 flex-1 space-y-1">
-                            {group.storePublished && line.productPublished ? (
-                              <Link
-                                href={`/s/${group.storeSlug}/products/${line.productId}`}
-                                className="font-bold underline underline-offset-4"
-                              >
-                                {line.productName}
-                              </Link>
-                            ) : (
-                              <span className="font-bold">{line.productName}</span>
-                            )}
-                            <p>{formatPrice(line.unitPrice)}</p>
-                            {problem && (
-                              <p role="alert" className="text-destructive text-sm">
-                                {problem}
-                              </p>
-                            )}
-                            <CartLineControls
-                              itemId={line.itemId}
-                              quantity={line.quantity}
-                              stock={line.stock}
-                              name={line.productName}
-                            />
-                            <p>小計 {formatPrice(line.unitPrice * line.quantity)}</p>
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </CardContent>
-                <CardFooter className="justify-end">
-                  <p>{group.storeName}の小計 {formatPrice(group.subtotal)}</p>
-                </CardFooter>
-              </Card>
-            ))}
+                          <p>{formatPrice(line.unitPrice)}</p>
+                          {problem && (
+                            <p role="alert" className="text-destructive text-sm">
+                              {problem}
+                            </p>
+                          )}
+                          <CartLineControls
+                            itemId={line.itemId}
+                            quantity={line.quantity}
+                            stock={line.stock}
+                            name={line.productName}
+                          />
+                          <p>小計 {formatPrice(line.unitPrice * line.quantity)}</p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </CardContent>
+            </Card>
             <p className="text-right text-xl font-bold">合計 {formatPrice(cart.total)}</p>
             <div className="space-y-2">
               {cart.hasProblems ? (

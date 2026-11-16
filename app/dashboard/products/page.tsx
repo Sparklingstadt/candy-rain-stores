@@ -26,7 +26,7 @@ export default async function ProductsPage() {
       title="商品"
       description="写真や説明に、あなたのお店らしさを。価格・在庫・公開状態をここで管理できます。"
       storeName={store.name}
-      storeHref={`/s/${store.slug}`}
+      storeHref="/"
       active="products"
       headerAction={full ? (
         <div className="text-right">

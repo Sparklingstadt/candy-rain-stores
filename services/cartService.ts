@@ -3,6 +3,7 @@ import type { Prisma } from "../generated/prisma/client"
 import { MAX_CART_ITEMS, MAX_QUANTITY, parseQuantity } from "../lib/orderValidation"
 import { isUuid } from "../lib/uuid"
 import type { StoreDeps } from "./deps"
+import { STORE_ID } from "./storeService"
 
 export type CartLineProblem = "unavailable" | "insufficient_stock" | "own_store"
 export type CartLine = {
@@ -16,18 +17,16 @@ export type CartLine = {
   productPublished: boolean
   problem: CartLineProblem | null
 }
-export type CartGroup = {
-  storeId: string
-  storeName: string
-  storeSlug: string
-  storePublished: boolean // 非公開のストアや商品にはリンクしない（404 になり slug も見せてしまう）
+// カートに入るのはサイトのお店の商品だけ。store はお店がまだなければ null（カートも空）
+export type CartStore = {
+  name: string
+  isPublished: boolean // 非公開のお店や商品にはリンクしない（404 になる）
   paymentInstructions: string | null
-  lines: CartLine[]
-  subtotal: number
 }
 // version は注文手続き画面で見せたカートの版。注文確定時に同じかを確かめる
 export type CartView = {
-  groups: CartGroup[]
+  store: CartStore | null
+  lines: CartLine[]
   total: number
   itemCount: number
   hasProblems: boolean
@@ -52,41 +51,40 @@ export async function lockCart(tx: Prisma.TransactionClient, buyerSub: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"cart:" + buyerSub}))`
 }
 
-// product は store 付き、quantity は希望数。購入できれば null（注文確定でも使う）
+// store はサイトのお店（なければ null）、quantity は希望数。購入できれば null（注文確定でも使う）
 export function lineProblem(
-  product: { isPublished: boolean; stock: number; store: { isPublished: boolean; ownerSub: string } },
+  product: { isPublished: boolean; stock: number },
+  store: { isPublished: boolean; ownerSub: string } | null,
   quantity: number,
   buyerSub: string,
 ): CartLineProblem | null {
-  if (product.store.ownerSub === buyerSub) return "own_store"
-  if (!product.isPublished || !product.store.isPublished) return "unavailable"
+  if (store?.ownerSub === buyerSub) return "own_store"
+  if (!store || !product.isPublished || !store.isPublished) return "unavailable"
   if (product.stock < quantity) return "insufficient_stock"
   return null
 }
 
 export async function getCart(deps: StoreDeps, buyerSub: string): Promise<CartView> {
-  const items = await deps.db.cartItem.findMany({
-    where: { buyerSub },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    include: {
-      product: {
-        include: {
-          store: true,
-          images: { orderBy: { sortOrder: "asc" }, take: 1 },
-        },
-      },
-    },
-  })
+  const [store, items] = await Promise.all([
+    deps.db.storeSettings.findUnique({ where: { id: STORE_ID } }),
+    deps.db.cartItem.findMany({
+      where: { buyerSub },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      include: { product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } } },
+    }),
+  ])
 
-  const groups = new Map<string, CartGroup>()
   let total = 0
   let itemCount = 0
   let hasProblems = false
-  for (const item of items) {
+  const lines = items.map((item): CartLine => {
     const { product } = item
-    const problem = lineProblem(product, item.quantity, buyerSub)
+    const problem = lineProblem(product, store, item.quantity, buyerSub)
     const image = product.images[0]
-    const line: CartLine = {
+    total += product.price * item.quantity
+    itemCount += item.quantity
+    if (problem) hasProblems = true
+    return {
       itemId: item.id,
       productId: product.id,
       productName: product.name,
@@ -97,28 +95,17 @@ export async function getCart(deps: StoreDeps, buyerSub: string): Promise<CartVi
       productPublished: product.isPublished,
       problem,
     }
-    let group = groups.get(product.storeId)
-    if (!group) {
-      group = {
-        storeId: product.store.id,
-        storeName: product.store.name,
-        storeSlug: product.store.slug,
-        storePublished: product.store.isPublished,
-        paymentInstructions: product.store.paymentInstructions,
-        lines: [],
-        subtotal: 0,
-      }
-      groups.set(product.storeId, group)
-    }
-    const amount = product.price * item.quantity
-    group.lines.push(line)
-    group.subtotal += amount
-    total += amount
-    itemCount += item.quantity
-    if (problem) hasProblems = true
+  })
+  return {
+    store: store
+      ? { name: store.name, isPublished: store.isPublished, paymentInstructions: store.paymentInstructions }
+      : null,
+    lines,
+    total,
+    itemCount,
+    hasProblems,
+    version: cartVersion(lines),
   }
-  const version = cartVersion([...groups.values()].flatMap((g) => g.lines))
-  return { groups: [...groups.values()], total, itemCount, hasProblems, version }
 }
 
 export async function countCartItems(deps: StoreDeps, buyerSub: string): Promise<number> {
@@ -142,12 +129,16 @@ export async function addToCart(
 
     const product = await tx.product.findUnique({
       where: { id: productId },
-      select: { isPublished: true, stock: true, store: { select: { isPublished: true, ownerSub: true } } },
+      select: { isPublished: true, stock: true },
     })
-    if (!product || !product.isPublished || !product.store.isPublished) {
+    const store = await tx.storeSettings.findUnique({
+      where: { id: STORE_ID },
+      select: { isPublished: true, ownerSub: true },
+    })
+    if (!product || !store || !product.isPublished || !store.isPublished) {
       return { ok: false, code: "not_found" } as const
     }
-    if (product.store.ownerSub === buyerSub) return { ok: false, code: "own_store" } as const
+    if (store.ownerSub === buyerSub) return { ok: false, code: "own_store" } as const
 
     const existing = await tx.cartItem.findUnique({
       where: { buyerSub_productId: { buyerSub, productId } },

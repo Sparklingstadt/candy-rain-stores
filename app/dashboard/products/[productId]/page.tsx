@@ -42,7 +42,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ pr
               </Button>
             </form>
             <Button asChild variant="outline">
-              <Link href={`/s/${store.slug}/products/${product.id}`}>商品ページを見る</Link>
+              <Link href={`/products/${product.id}`}>商品ページを見る</Link>
             </Button>
           </div>
         </CardContent>

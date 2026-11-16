@@ -4,11 +4,10 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { SAVE_FAILED, text } from "@/lib/formData"
 import { requireSub } from "@/lib/session"
-import { validateSlug, validateStoreFields, type FieldErrors } from "@/lib/storeValidation"
+import { validateStoreFields, type FieldErrors } from "@/lib/storeValidation"
 import { deps } from "@/services/deps"
 import {
   createStore,
-  deleteStore,
   setPublished,
   updateStore,
   type ImageInput,
@@ -18,7 +17,6 @@ import { readImageField } from "./formImage"
 export type StoreFormState = {
   errors?: FieldErrors
   values?: {
-    slug?: string
     name: string
     description: string
     themeColor: string
@@ -61,34 +59,25 @@ export async function createStoreAction(
   formData: FormData,
 ): Promise<StoreFormState> {
   const sub = await requireSub()
-  const rawSlug = text(formData, "slug")
   const parsed = await parseStoreForm(formData)
-  const slug = validateSlug(rawSlug)
-  if (!parsed.ok || !slug.ok) {
-    const errors: FieldErrors = { ...(parsed.ok ? {} : parsed.errors) }
-    if (!slug.ok) errors.slug = slug.error
-    return { errors, values: { slug: rawSlug, ...parsed.values } }
-  }
+  if (!parsed.ok) return { errors: parsed.errors, values: parsed.values }
 
   let result
   try {
     result = await createStore(deps(), sub, {
-      slug: slug.slug,
       fields: parsed.fields,
       logo: parsed.logo,
       header: parsed.header,
     })
   } catch (error) {
     console.error("createStoreAction failed", error)
-    return { message: SAVE_FAILED, values: { slug: rawSlug, ...parsed.values } }
+    return { message: SAVE_FAILED, values: parsed.values }
   }
   if (!result.ok) {
-    if (result.code === "invalid") {
-      return { errors: result.errors, values: { slug: rawSlug, ...parsed.values } }
-    }
-    redirect("/dashboard") // already_has_store
+    if (result.code === "invalid") return { errors: result.errors, values: parsed.values }
+    redirect("/dashboard") // already_exists: ほかの人が先にお店を作った
   }
-  revalidatePath("/dashboard")
+  revalidatePath("/", "layout")
   redirect("/dashboard")
 }
 
@@ -117,31 +106,12 @@ export async function updateStoreAction(
     if (result.code === "invalid") return { errors: result.errors, values: parsed.values }
     redirect("/dashboard") // not_found
   }
-  revalidatePath("/dashboard")
-  revalidatePath("/s/" + result.store.slug)
+  revalidatePath("/", "layout")
   return { saved: true }
 }
 
 export async function setPublishedAction(formData: FormData): Promise<void> {
   const sub = await requireSub()
   const store = await setPublished(deps(), sub, formData.get("publish") === "true")
-  revalidatePath("/dashboard")
-  if (store) revalidatePath("/s/" + store.slug)
-}
-
-export async function deleteStoreAction(
-  _prev: { error?: string },
-  formData: FormData,
-): Promise<{ error?: string }> {
-  const sub = await requireSub()
-  const result = await deleteStore(deps(), sub, text(formData, "confirmSlug"))
-  if (!result.ok && result.code === "confirm_mismatch") {
-    return { error: "ストア ID が一致しません" }
-  }
-  if (!result.ok && result.code === "has_open_orders") {
-    return { error: "対応中の注文があるため削除できません" }
-  }
-  revalidatePath("/dashboard")
-  if (result.ok) revalidatePath("/s/" + result.slug)
-  return {}
+  if (store) revalidatePath("/", "layout")
 }

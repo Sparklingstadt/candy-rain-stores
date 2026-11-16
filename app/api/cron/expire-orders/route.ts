@@ -15,7 +15,8 @@ function authorized(request: Request): boolean {
 export async function GET(request: Request) {
   if (!authorized(request)) return new Response("Unauthorized", { status: 401 })
 
-  const { canceled, storeSlugs } = await expireUnpaidOrders(deps(), new Date())
-  for (const slug of storeSlugs) revalidatePath(`/s/${slug}`, "layout")
+  const { canceled } = await expireUnpaidOrders(deps(), new Date())
+  // 在庫が戻ったので、お店と商品のページを作り直す
+  if (canceled > 0) revalidatePath("/", "layout")
   return Response.json({ canceled })
 }

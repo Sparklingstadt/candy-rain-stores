@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react"
 import { ArrowUpRightIcon, Flower2Icon, SproutIcon, WalletIcon } from "lucide-react"
-import { ProductGrid } from "@/app/s/[slug]/ProductGrid"
+import { ProductGrid } from "./ProductGrid"
 
 export type StorefrontStore = {
   name: string
@@ -8,7 +8,6 @@ export type StorefrontStore = {
   themeColor: string
   logoUrl: string | null
   headerUrl: string | null
-  slug?: string
   paymentInstructions?: string | null
 }
 
@@ -58,7 +57,7 @@ export function Storefront({ store, products, visibleProducts, filtered = false,
             <div className="min-w-0">
               <h1 className="text-xl leading-snug font-semibold tracking-[.04em] break-words sm:text-2xl">{store.name}</h1>
               <p className="mt-1.5 text-[9px] tracking-[.22em] text-[#79656a] sm:text-[10px]">A LITTLE STORE, FILLED WITH LOVE</p>
-              {store.slug && <p className="mt-2 text-xs leading-6 break-words text-[#7a6669]">/s/{store.slug}・商品 {productCounts.published} 点</p>}
+              <p className="mt-2 text-xs leading-6 break-words text-[#7a6669]">商品 {productCounts.published} 点</p>
             </div>
           </div>
           <nav aria-label="ストア内メニュー" className="flex items-center gap-6 pl-0.5 text-xs text-[#786168] sm:gap-8 sm:text-sm">

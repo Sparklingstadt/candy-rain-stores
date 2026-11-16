@@ -18,9 +18,10 @@
 
 | 機能 | 画面 | 中心になるファイル |
 |---|---|---|
-| ストア一覧（トップページ。24 件ずつ、新しい順） | `/stores`（`/` はここへ転送） | `app/stores/page.tsx` → `listPublishedStores`（`services/storeService.ts`） |
-| ストアのページ（ロゴ・ヘッダー・商品一覧） | `/s/<ストアID>` | `app/s/[slug]/page.tsx` → `getStoreForViewer` / `listProductsForStorePage` |
-| 商品の詳細（画像・価格・在庫・売り切れ表示） | `/s/<ストアID>/products/<商品ID>` | `app/s/[slug]/products/[productId]/page.tsx` → `getProductForViewer`（`services/productService.ts`） |
+| お店のページ（トップページ。ロゴ・ヘッダー・商品一覧）。お店がまだなければ紹介とログイン、非公開なら「準備中」 | `/` | `app/page.tsx`（`StorePage.tsx` / `Landing.tsx`）→ `getStore` / `listProductsForStorePage` |
+| 商品の詳細（画像・価格・在庫・売り切れ表示） | `/products/<商品ID>` | `app/products/[productId]/page.tsx` → `getProductForViewer`（`services/productService.ts`） |
+
+サイトにお店は 1 つだけです。以前の `/stores`・`/s/<ストアID>`・`/s/<ストアID>/products/<商品ID>` は `next.config.ts` の `redirects` で新しい URL へ転送します。
 
 非公開のストアや商品は 404 になります。ただしオーナー本人が見ると「プレビュー」として表示されます。
 
@@ -28,10 +29,9 @@
 
 | 機能 | 画面 | 中心になるファイル |
 |---|---|---|
-| ストアを作る（1 人 1 店まで） | `/dashboard`（まだストアがないときは作成フォームになる） | `app/dashboard/actions.ts` の `createStoreAction` → `createStore` |
+| お店を作る（サイトに 1 つだけ。最初に作った人がオーナーになる） | `/dashboard`（まだお店がないときは作成フォーム、ほかの人のお店があるときは「お店はすでにあります」） | `app/dashboard/actions.ts` の `createStoreAction` → `createStore` |
 | ストアを編集する（名前・説明・テーマカラー・ロゴ・ヘッダー・お支払い方法の案内・連絡先メール） | `/dashboard` | `updateStoreAction` → `updateStore` |
 | ストアを公開／非公開にする | `/dashboard` | `setPublishedAction` → `setPublished` |
-| ストアを削除する（ストア ID の入力で確認。対応中の注文があると削除できない） | `/dashboard` | `deleteStoreAction` → `deleteStore` |
 | 商品を登録・編集・削除する（1 店 100 件まで） | `/dashboard/products` | `app/dashboard/products/actions.ts` → `services/productService.ts` |
 | 商品画像を追加・削除・並べ替える（1 商品 5 枚まで。先頭がサムネイル） | `/dashboard/products/<商品ID>` | `addProductImageAction` / `removeProductImageAction` / `makeProductImageFirstAction` |
 | 商品を公開／非公開にする | `/dashboard/products/<商品ID>` | `setProductPublishedAction` → `setProductPublished` |
@@ -44,7 +44,7 @@
 |---|---|---|
 | カートに入れる（1 商品 10 個まで・30 種類まで・在庫の数まで。自分のストアの商品は不可） | 商品の詳細ページ | `app/cart/actions.ts` の `addToCartAction` → `addToCart`（`services/cartService.ts`） |
 | カートの数量を変える・削除する | `/cart` | `setCartQuantityAction` / `removeFromCartAction` |
-| 注文する（お届け先を入力。ストアごとに注文が分かれる） | `/checkout` | `app/checkout/actions.ts` の `placeOrderAction` → `placeOrder` |
+| 注文する（お届け先を入力。カートの中身が 1 つの注文になる） | `/checkout` | `app/checkout/actions.ts` の `placeOrderAction` → `placeOrder` |
 | 注文履歴と詳細を見る（支払い方法の案内・お支払い期限・ストアの連絡先） | `/orders`、`/orders/<注文ID>` | `listBuyerOrders` / `getBuyerOrder` |
 
 #### 自動で動くもの
@@ -67,10 +67,11 @@
 | サイト内での決済 | 支払いはストアが案内する方法で、サイトの外で行う |
 | メール通知 | 注文時・発送時などに何も送らない |
 | 送料の計算 | 注文の合計は商品代だけ |
-| 検索・カテゴリ | ストア一覧は新しい順に並ぶだけ |
+| 検索・カテゴリ | 商品は「販売中／売り切れ」の絞り込みと価格順の並べ替えだけ |
 | レビュー・クーポン | — |
 | 購入者による注文キャンセル | わざと入れていない仕様。キャンセルできるのはオーナーと自動キャンセルだけ |
-| 1 人で複数のストアを持つこと | `Store.ownerSub` が `@unique` |
+| 複数のお店 | お店の設定は `StoreSettings` の 1 行だけ（`id = 1`。SQL の CHECK 制約で 2 行目を作れない） |
+| お店の削除・オーナーの交代 | 画面はない。必要ならデータベースを直接直す |
 | ストアの売上集計 | 注文管理の画面に状態ごとの注文件数が出るだけ |
 
 ---
@@ -116,21 +117,23 @@ flowchart LR
 | `requireSub()` | オーナーの画面・処理 | ログイン画面へ送り、終わったら `/dashboard` に戻す |
 | `requireBuyer(戻り先)` | 購入者の画面・処理 | ログイン画面へ送り、終わったら指定の画面に戻す |
 
-ユーザーは Candy Rain ID の `sub`（ユーザーごとの固定の ID）で見分けます。データベースにユーザーの表はなく、`Store.ownerSub` や `Order.buyerSub` にこの値が入ります。
+ユーザーは Candy Rain ID の `sub`（ユーザーごとの固定の ID）で見分けます。データベースにユーザーの表はなく、`StoreSettings.ownerSub` や `Order.buyerSub` にこの値が入ります。
 
 ### 2-1. データのつながり
 
 ```mermaid
 erDiagram
-  Store ||--o{ Product : "商品"
+  StoreSettings {
+    int id "常に 1"
+  }
   Product ||--o{ ProductImage : "画像（sortOrder 順）"
   Product ||--o{ CartItem : "カートの行"
-  Store ||--o{ Order : "注文（ストアが消えても残る）"
   Order ||--o{ OrderItem : "注文の明細"
   Product ||--o{ OrderItem : "（商品が消えても残る）"
 ```
 
-- **ストアや商品を消すと**、その商品の画像とカートの行も一緒に消えます。注文と明細は残り、ストアや商品へのつながりだけが切れます（`onDelete: SetNull`）。
+- お店の設定（`StoreSettings`）はほかの表とつながっていません。商品と注文はすべてこのお店のものです。
+- **商品を消すと**、その商品の画像とカートの行も一緒に消えます。注文の明細は残り、商品へのつながりだけが切れます（`onDelete: SetNull`）。
 - **注文には、注文した時点の値をコピーして持たせています**（`storeName`、`paymentInstructions`、`productName`、`unitPrice`）。あとで商品の価格やストア名が変わっても、注文履歴は変わりません。
 
 ### 2-2. ストアを作る・編集する
@@ -145,17 +148,17 @@ sequenceDiagram
   participant DB
   画面->>受付: createStoreAction / updateStoreAction
   受付->>受付: requireSub()
-  受付->>チェック: validateStoreFields / validateSlug
+  受付->>チェック: validateStoreFields
   受付->>受付: readImageField（画像の形式・2MB 以下）
   受付->>サービス: createStore / updateStore
   サービス->>画像: ロゴ・ヘッダーをアップロード
-  サービス->>DB: Store を作る／更新する
+  サービス->>DB: StoreSettings（id = 1）を作る／更新する
   Note over サービス: DB への書き込みが失敗したら、<br/>上げた画像を消して元に戻す
   受付->>受付: revalidatePath → /dashboard へ
 ```
 
-- ストア ID（slug）はほかの人と重複できません。重複するとデータベースのエラー（`P2002`）になり、「このストア ID はすでに使われています」と表示されます。
-- 削除（`deleteStore`）は、受付中か支払確認済みの注文が 1 件でもあると断ります。
+- お店はサイトに 1 つだけです。すでにあれば `createStore` は `already_exists` を返します。2 人が同時に作っても、主キー（`id = 1`）の重複（`P2002`）で片方だけが成功します。
+- オーナーかどうかは `StoreSettings.ownerSub` とログイン中の `sub` を比べて決めます（`isStoreOwner`）。
 
 ### 2-3. 商品を登録する
 
@@ -168,11 +171,11 @@ sequenceDiagram
   画面->>受付: createProductAction
   受付->>受付: requireSub() → validateProductFields
   受付->>サービス: createProduct
-  サービス->>DB: Store 行をロック → 件数を数える（100 件まで）→ Product を作る
+  サービス->>DB: StoreSettings 行をロック → 件数を数える（100 件まで）→ Product を作る
   受付->>受付: 商品の編集画面へ
 ```
 
-- 商品は**非公開**で作られます。ストアページに出すには、編集画面で公開します。
+- 商品は**非公開**で作られます。お店のページに出すには、編集画面で公開します。
 - **在庫の編集には注意が必要です。** 注文やキャンセルで在庫は勝手に増減します。そのため `updateProduct` は、編集画面を開いたときの在庫数（`stockBase`）とデータベースの在庫が同じときだけ在庫を書き換えます。違っていれば「在庫が注文で変わりました」と表示されます。
 
 ### 2-4. カートに入れる
@@ -215,7 +218,7 @@ sequenceDiagram
   サービス->>サービス: ③ 版を比べる（価格・数量が変わっていたら中止）
   サービス->>サービス: ④ lineProblem で在庫・公開状態を確認
   サービス->>DB: ⑤ 在庫を減らす
-  サービス->>DB: ⑥ ストアごとに Order + OrderItem を作る
+  サービス->>DB: ⑥ Order + OrderItem を 1 つ作る
   サービス->>DB: ⑦ カートを空にする
   end
   受付->>受付: 成功 → /orders?placed=1、変更あり → /cart?error=changed
@@ -223,7 +226,7 @@ sequenceDiagram
 
 - ① と ② のロックで、同じ商品の最後の 1 個を 2 人が同時に注文しても、在庫がマイナスになりません。
 - ③ の「版」は、カートの行・数量・単価から作ったハッシュ値です。注文手続き画面を開いたあとにオーナーが値上げした場合などは、確定せずにカートへ戻します。
-- 1 つのストアへの注文の合計には上限があります（約 21 億円。データベースの整数型の上限）。
+- 1 つの注文の合計には上限があります（約 21 億円。データベースの整数型の上限）。
 
 ### 2-6. 注文の状態が変わる
 
@@ -268,13 +271,13 @@ sequenceDiagram
 
 | 順 | ファイル | やること |
 |---|---|---|
-| 1 | `prisma/schema.prisma` | `Store` にフィールドを足す |
+| 1 | `prisma/schema.prisma` | `StoreSettings` にフィールドを足す |
 | 2 | `prisma/migrations/<日時>_<名前>/migration.sql` | `npx prisma migrate dev --name <名前>` で作る |
 | 3 | `lib/storeValidation.ts`（商品なら `productValidation.ts`） | `StoreField` 型・`StoreFields` 型・`validateStoreFields` にチェックを足す |
 | 4 | `lib/storeValidation.test.mts` | チェックのテストを足す |
 | 5 | `app/dashboard/actions.ts` | `StoreFormState.values` と `parseStoreForm` にフォームの値を足す |
 | 6 | `app/dashboard/StoreForm.tsx` | 入力欄を足す |
-| 7 | 表示する画面（例: `app/s/[slug]/page.tsx`、`app/orders/[orderId]/page.tsx`） | 表示する |
+| 7 | 表示する画面（例: `app/StorePage.tsx`、`app/orders/[orderId]/page.tsx`） | 表示する |
 | 8 | `tests/integration/storeService.test.mts` | 保存できることのテストを足す |
 | 9 | `README.md` | 機能の説明を更新する |
 
@@ -298,7 +301,7 @@ sequenceDiagram
 
 | 順 | ファイル | やること |
 |---|---|---|
-| 1 | `services/*Service.ts` | 処理を書く。結果は `{ ok: true }` / `{ ok: false, code: "..." }` で返す。**権限の確認（自分のストアか、など）はここでする** |
+| 1 | `services/*Service.ts` | 処理を書く。結果は `{ ok: true }` / `{ ok: false, code: "..." }` で返す。**権限の確認（お店のオーナーか、など）はここでする** |
 | 2 | `tests/integration/*Service.test.mts` | テストを書く（実際の DB を使う） |
 | 3 | `app/<パス>/actions.ts` | `"use server"` の関数を足す。ログイン確認 → 入力チェック → service → `revalidatePath`。フォームの値は `lib/formData.ts` の `text`、失敗時の文言は `SAVE_FAILED` を使う。`prisma` は直接使わない |
 | 4 | 画面のコンポーネント | フォームから呼ぶ（`useActionState` でメッセージを受け取る） |
@@ -317,7 +320,7 @@ sequenceDiagram
 | 2 | `lib/orderStatus.ts` | `OrderStatus` 型、`ORDER_STATUSES`、`ORDER_STATUS_LABELS`、`OWNER_TRANSITIONS` を更新 |
 | 3 | `lib/orderStatus.test.mts` | 進める先のテストを更新 |
 | 4 | `app/components/OrderStatusBadge.tsx` | バッジの色を決める |
-| 5 | `services/orderService.ts` | 在庫を戻すべき状態なら `changeStatus` を確認。`deleteStore` の「対応中の注文」の条件も確認 |
+| 5 | `services/orderService.ts` | 在庫を戻すべき状態なら `changeStatus` を確認 |
 
 ### 3-5. 上限値を変える
 
@@ -327,7 +330,6 @@ sequenceDiagram
 | 1 商品の数量（10）・カートの種類数（30） | `lib/orderValidation.ts` |
 | 画像のサイズ（2MB） | `lib/storeValidation.ts` の `MAX_IMAGE_BYTES`（画面側は `next.config.ts` の `bodySizeLimit: 5mb` も関係） |
 | 支払期限（7 日） | `lib/orderStatus.ts` の `PAYMENT_DEADLINE_DAYS` |
-| ストア一覧の 1 ページの件数（24） | `app/stores/page.tsx` の `PAGE_SIZE` |
 
 ### 3-6. 変更したら確かめること
 

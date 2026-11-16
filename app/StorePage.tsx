@@ -1,23 +1,19 @@
-import type { Metadata } from "next"
 import Link from "next/link"
-import { notFound } from "next/navigation"
 import { EyeOffIcon } from "lucide-react"
-import { cache } from "react"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Storefront } from "@/app/components/atelier/Storefront"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
-import { getSub } from "@/lib/session"
-import { normalizeSlug } from "@/lib/storeValidation"
 import { cn } from "@/lib/utils"
-import { deps } from "@/services/deps"
-import { listProductsForStorePage } from "@/services/productService"
-import { getStoreForViewer } from "@/services/storeService"
+import type { ProductView } from "@/services/productService"
+import type { StoreView } from "@/services/storeService"
 
 type Props = {
-  params: Promise<{ slug: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  store: StoreView
+  products: ProductView[] // オーナーが見るときは非公開の商品も入る
+  isOwnerPreview: boolean
+  query: { [key: string]: string | string[] | undefined }
 }
 
 const FILTERS = [
@@ -42,38 +38,16 @@ function parseSort(raw: string | string[] | undefined): Sort {
   return SORTS.find((s) => s.value === raw)?.value ?? "new"
 }
 
-const load = cache(async (params: Props["params"]) => {
-  const { slug } = await params
-  const viewerSub = await getSub()
-  const found = await getStoreForViewer(deps(), normalizeSlug(slug), viewerSub)
-  if (!found) return null
-  const { store } = found
-  const products = await listProductsForStorePage(
-    deps(),
-    store.id,
-    viewerSub !== null && viewerSub === store.ownerSub,
-  )
-  return { ...found, products, isOwner: viewerSub !== null && viewerSub === store.ownerSub }
-})
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const found = await load(params)
-  return found ? { title: found.store.name } : {}
-}
-
-function tabHref(slug: string, filter: Filter, sort: Sort): string {
+function tabHref(filter: Filter, sort: Sort): string {
   const query = new URLSearchParams()
   if (filter !== "all") query.set("filter", filter)
   if (sort !== "new") query.set("sort", sort)
   const qs = query.toString()
-  return `/s/${slug}${qs ? `?${qs}` : ""}`
+  return qs ? `/?${qs}` : "/"
 }
 
-export default async function StorePage({ params, searchParams }: Props) {
-  const found = await load(params)
-  if (!found) notFound()
-  const { store, isOwnerPreview, products, isOwner } = found
-  const query = await searchParams
+// トップページ（/）に出すお店の画面
+export function StorePage({ store, products, isOwnerPreview, query }: Props) {
   const filter = parseFilter(query.filter)
   const sort = parseSort(query.sort)
 
@@ -88,7 +62,7 @@ export default async function StorePage({ params, searchParams }: Props) {
 
   return (
     <div style={{ "--store-color": store.themeColor } as React.CSSProperties}>
-      <SiteHeader path={`/s/${store.slug}`} />
+      <SiteHeader path="/" />
       {isOwnerPreview && (
         <Alert role="status" className="rounded-none border-x-0 border-t-0 border-[#dfc9d0] bg-[#f7e8ed] px-5 py-4 sm:px-8">
           <EyeOffIcon />
@@ -102,8 +76,8 @@ export default async function StorePage({ params, searchParams }: Props) {
       )}
       <Storefront
         store={store}
-        products={products.map((product) => ({ ...product, href: `/s/${store.slug}/products/${product.id}` }))}
-        visibleProducts={visible.map((product) => ({ ...product, href: `/s/${store.slug}/products/${product.id}` }))}
+        products={products.map((product) => ({ ...product, href: `/products/${product.id}` }))}
+        visibleProducts={visible.map((product) => ({ ...product, href: `/products/${product.id}` }))}
         filtered={products.length > 0 && filter !== "all"}
         counts={{ published: published.length, available: availableCount, soldOut: soldOutCount }}
         catalogControls={
@@ -112,7 +86,7 @@ export default async function StorePage({ params, searchParams }: Props) {
               {FILTERS.map((f) => (
                 <Link
                   key={f.value}
-                  href={tabHref(store.slug, f.value, sort)}
+                  href={tabHref(f.value, sort)}
                   aria-current={f.value === filter ? "page" : undefined}
                   className={cn(
                     "rounded-full px-4 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#a53962] focus-visible:ring-offset-2",
