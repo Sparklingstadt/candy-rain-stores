@@ -98,7 +98,15 @@ flowchart LR
 | 業務ロジック（`services/`） | データベースの読み書き。在庫・権限・同時実行の正しさはここで守る | 結果を `{ ok: true }` か `{ ok: false, code: "..." }` で返す（例外にしない） |
 | 小さな関数（`lib/`） | 入力チェック、表示用の整形、上限値の定数 | データベースに触らない。ユニットテストあり |
 
-**services への渡し物**: services の関数は最初の引数に `deps`（`{ db, storage }`）を受け取ります。本番では `app/dashboard/deps.ts` の `deps()` が Prisma と Supabase を渡し、テストではメモリの画像置き場に差し替えます。
+**services への渡し物**: services の関数は最初の引数に `deps`（`{ db, storage }`）を受け取ります。型は `services/deps.ts` の `StoreDeps` です。本番では同じファイルの `deps()` が Prisma と Supabase を渡し、テストではメモリの画像置き場に差し替えます。画面と受付処理は `import { deps } from "@/services/deps"` で受け取ります。
+
+**全体で使う小さな部品**:
+
+| 部品 | 場所 | 用途 |
+|---|---|---|
+| `isUuid` | `lib/uuid.ts` | URL やフォームから来た ID が UUID の形か確かめる |
+| `text(formData, name)` | `lib/formData.ts` | フォームの文字列の値を取り出す（ないときは空文字） |
+| `SAVE_FAILED` | `lib/formData.ts` | 保存が例外で失敗したときの共通の文言 |
 
 **ログインの確かめ方**（`lib/session.ts`）:
 
@@ -292,7 +300,7 @@ sequenceDiagram
 |---|---|---|
 | 1 | `services/*Service.ts` | 処理を書く。結果は `{ ok: true }` / `{ ok: false, code: "..." }` で返す。**権限の確認（自分のストアか、など）はここでする** |
 | 2 | `tests/integration/*Service.test.mts` | テストを書く（実際の DB を使う） |
-| 3 | `app/<パス>/actions.ts` | `"use server"` の関数を足す。ログイン確認 → 入力チェック → service → `revalidatePath` |
+| 3 | `app/<パス>/actions.ts` | `"use server"` の関数を足す。ログイン確認 → 入力チェック → service → `revalidatePath`。フォームの値は `lib/formData.ts` の `text`、失敗時の文言は `SAVE_FAILED` を使う。`prisma` は直接使わない |
 | 4 | 画面のコンポーネント | フォームから呼ぶ（`useActionState` でメッセージを受け取る） |
 
 在庫やカートに触る場合は、既存のロックの順番に合わせてください。
@@ -334,13 +342,12 @@ npm run test:integration  # services の結合テスト（ローカルの DB が
 
 ## 付録: 分かりにくい所（リファクタリング候補）
 
-このガイドを書いていて説明しづらかった所です。直すかどうかは別に決めます。
+このガイドを書いていて説明しづらかった所です。
 
-| 箇所 | 分かりにくさ |
-|---|---|
-| `app/dashboard/deps.ts` | 全画面が使う `deps()` が、オーナー用の `dashboard/` フォルダに置かれている。カートや注文の画面も `@/app/dashboard/deps` から読んでいる |
-| `services/storeService.ts` の `StoreDeps` 型 | 全サービス共通の型なのに、ストア用のファイルで定義されている。カート・注文・商品のサービスもここから読み込んでいる |
-| `services/productService.ts` の `isUuid` | 汎用の確認関数なのに商品のファイルにあり、カート・注文のサービスもここから読み込んでいる |
-| `text(formData, name)` と `SAVE_FAILED` | 同じ関数・同じ文言が `actions.ts` ごとにコピーされている |
-| `app/dashboard/actions.ts` の `deleteStoreAction` | ここだけ services を通さず、`prisma` を直接使っている |
-| `app/orders/[orderId]/page.tsx` と `app/dashboard/orders/[orderId]/page.tsx` | 購入者用とオーナー用の注文詳細がよく似た作りで並んでいる |
+**対応済み（2026-11-16）**: `deps()` と `StoreDeps` 型を `services/deps.ts` へ、`isUuid` を `lib/uuid.ts` へ、`text` と `SAVE_FAILED` を `lib/formData.ts` へ移し、ストア削除の受付処理から `prisma` の直接利用をなくしました（設計は `docs/superpowers/specs/2026-11-16-module-placement-design.md`）。
+
+**見送ったもの**:
+
+| 箇所 | 分かりにくさ | 見送った理由 |
+|---|---|---|
+| `app/orders/[orderId]/page.tsx` と `app/dashboard/orders/[orderId]/page.tsx` | 購入者用とオーナー用の注文詳細が並んでいる | 共通なのは「注文内容」「お届け先」のカードだけで、レイアウトも中身も違う。まとめると分岐が増えて読みにくくなる |
