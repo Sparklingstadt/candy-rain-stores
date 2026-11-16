@@ -2,9 +2,9 @@ import Link from "next/link"
 import { SignOutButton } from "@/app/components/SignOutButton"
 import { readableTextColor } from "@/lib/color"
 import { requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { countReceivedOrders } from "@/services/orderService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "@/services/deps"
 import { DashboardNav } from "./DashboardNav"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { SAVE_FAILED } from "@/lib/formData"
-import { deps } from "@/services/deps"
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { changeOrderStatusAsOwner } from "@/services/orderService"
 
 const CHANGED = "注文の状態が変わりました。画面を更新してください"

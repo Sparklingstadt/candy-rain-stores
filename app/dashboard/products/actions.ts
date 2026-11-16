@@ -11,6 +11,7 @@ import {
   type ProductFieldErrors,
 } from "@/lib/productValidation"
 import { requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import {
   addProductImage,
   createProduct,
@@ -21,7 +22,6 @@ import {
   updateProduct,
 } from "@/services/productService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "@/services/deps"
 import { readImageField } from "../formImage"
 
 export type ProductFormState = {

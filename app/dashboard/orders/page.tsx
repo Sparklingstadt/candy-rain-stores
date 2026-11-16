@@ -14,8 +14,8 @@ import {
   type OrderStatus,
 } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
-import { countStoreOrdersByStatus, listStoreOrders } from "@/services/orderService"
 import { deps } from "@/services/deps"
+import { countStoreOrdersByStatus, listStoreOrders } from "@/services/orderService"
 
 export const metadata: Metadata = { title: "注文管理" }
 

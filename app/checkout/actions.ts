@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { SAVE_FAILED, text } from "@/lib/formData"
-import { deps } from "@/services/deps"
 import { validateShipping, type ShippingErrors, type ShippingInfo } from "@/lib/orderValidation"
 import { requireBuyer } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { placeOrder, type PlaceOrderResult } from "@/services/orderService"
 
 export type CheckoutState = { errors?: ShippingErrors; values?: ShippingInfo; message?: string }

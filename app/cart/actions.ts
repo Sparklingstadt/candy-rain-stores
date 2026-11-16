@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { candyRainIdProviderId, signIn } from "@/auth"
 import { SAVE_FAILED } from "@/lib/formData"
-import { deps } from "@/services/deps"
 import { safeReturnTo } from "@/lib/safeReturnTo"
 import { getBuyer, requireBuyer } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { addToCart, removeFromCart, setCartQuantity } from "@/services/cartService"
 
 export type AddToCartState = { message?: string; added?: boolean; capped?: boolean }

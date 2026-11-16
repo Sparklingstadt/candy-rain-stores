@@ -6,6 +6,7 @@ import { SAVE_FAILED, text } from "@/lib/formData"
 import { prisma } from "@/lib/prisma"
 import { requireSub } from "@/lib/session"
 import { validateSlug, validateStoreFields, type FieldErrors } from "@/lib/storeValidation"
+import { deps } from "@/services/deps"
 import {
   createStore,
   deleteStore,
@@ -13,7 +14,6 @@ import {
   updateStore,
   type ImageInput,
 } from "@/services/storeService"
-import { deps } from "@/services/deps"
 import { readImageField } from "./formImage"
 
 export type StoreFormState = {

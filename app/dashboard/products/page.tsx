@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils"
 import { formatPrice } from "@/lib/formatPrice"
 import { MAX_PRODUCTS_PER_STORE } from "@/lib/productValidation"
 import { requireSub } from "@/lib/session"
+import { deps } from "@/services/deps"
 import { listOwnProducts } from "@/services/productService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "@/services/deps"
 
 export default async function ProductsPage() {
   const sub = await requireSub()
