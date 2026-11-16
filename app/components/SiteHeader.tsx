@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { signInToBuyAction } from "@/app/cart/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

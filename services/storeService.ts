@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { Prisma } from "../generated/prisma/client"
-import type { PrismaClient, Store } from "../generated/prisma/client"
+import type { Store } from "../generated/prisma/client"
 import type { ImageStorage } from "../lib/imageStorage"
 import {
   normalizeSlug,
@@ -9,8 +9,8 @@ import {
   type ImageType,
   type StoreFields,
 } from "../lib/storeValidation"
+import type { StoreDeps } from "./deps"
 
-export type StoreDeps = { db: PrismaClient; storage: ImageStorage }
 export type ImageInput = (ImageType & { bytes: Uint8Array }) | null // null = 変更なし
 export type StoreView = Store & { logoUrl: string | null; headerUrl: string | null }
 export type CreateResult =

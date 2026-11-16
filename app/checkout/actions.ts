@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { validateShipping, type ShippingErrors, type ShippingInfo } from "@/lib/orderValidation"
 import { requireBuyer } from "@/lib/session"
 import { placeOrder, type PlaceOrderResult } from "@/services/orderService"

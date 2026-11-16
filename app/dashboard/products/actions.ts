@@ -20,7 +20,7 @@ import {
   updateProduct,
 } from "@/services/productService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "../deps"
+import { deps } from "@/services/deps"
 import { readImageField } from "../formImage"
 
 export type ProductFormState = {

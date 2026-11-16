@@ -12,8 +12,8 @@ import {
   listPublishedStores,
   setPublished,
   updateStore,
-  type StoreDeps,
 } from "../../services/storeService"
+import type { StoreDeps } from "../../services/deps"
 
 const fields = { name: "あめ屋", description: "かわいい", themeColor: "#112233" }
 const png = (n = 1) => ({

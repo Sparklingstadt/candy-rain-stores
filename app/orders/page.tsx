@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { CircleCheckIcon } from "lucide-react"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Alert, AlertDescription } from "@/components/ui/alert"

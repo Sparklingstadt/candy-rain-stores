@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/orderStatus"
 import { requireSub } from "@/lib/session"
 import { changeOrderStatusAsOwner } from "@/services/orderService"

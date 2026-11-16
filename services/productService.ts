@@ -6,9 +6,9 @@ import {
   getStoreForViewer,
   removeQuietly,
   type ImageInput,
-  type StoreDeps,
   type StoreView,
 } from "./storeService"
+import type { StoreDeps } from "./deps"
 
 export type ProductImageView = { id: string; url: string; sortOrder: number }
 export type ProductView = Product & { images: ProductImageView[] }

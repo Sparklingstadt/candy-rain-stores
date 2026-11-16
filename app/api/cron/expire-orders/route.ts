@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto"
 import { revalidatePath } from "next/cache"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { expireUnpaidOrders } from "@/services/orderService"
 
 // Vercel Cron が毎日呼ぶ（vercel.json）。支払期限を過ぎた受付のままの注文をキャンセルして在庫を戻す。

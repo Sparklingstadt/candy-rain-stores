@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { candyRainIdProviderId, signIn } from "@/auth"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { safeReturnTo } from "@/lib/safeReturnTo"
 import { getBuyer, requireBuyer } from "@/lib/session"
 import { addToCart, removeFromCart, setCartQuantity } from "@/services/cartService"

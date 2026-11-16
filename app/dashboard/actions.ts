@@ -12,7 +12,7 @@ import {
   updateStore,
   type ImageInput,
 } from "@/services/storeService"
-import { deps } from "./deps"
+import { deps } from "@/services/deps"
 import { readImageField } from "./formImage"
 
 export type StoreFormState = {

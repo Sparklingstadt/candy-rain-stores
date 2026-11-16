@@ -11,7 +11,7 @@ import { requireSub } from "@/lib/session"
 import { getStoreOrder } from "@/services/orderService"
 import { isUuid } from "@/services/productService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "../../deps"
+import { deps } from "@/services/deps"
 import { OrderStatusButtons } from "../OrderStatusButtons"
 
 export const metadata: Metadata = { title: "注文の詳細" }

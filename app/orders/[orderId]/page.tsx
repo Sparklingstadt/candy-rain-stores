@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { OrderStatusBadge } from "@/app/components/OrderStatusBadge"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Button } from "@/components/ui/button"

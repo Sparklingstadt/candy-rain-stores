@@ -9,7 +9,7 @@ import { MAX_PRODUCTS_PER_STORE } from "@/lib/productValidation"
 import { requireSub } from "@/lib/session"
 import { listOwnProducts } from "@/services/productService"
 import { getOwnStore } from "@/services/storeService"
-import { deps } from "../deps"
+import { deps } from "@/services/deps"
 
 export default async function ProductsPage() {
   const sub = await requireSub()

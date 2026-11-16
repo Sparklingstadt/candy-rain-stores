@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { deps } from "@/app/dashboard/deps"
+import { deps } from "@/services/deps"
 import { SiteHeader } from "@/app/components/SiteHeader"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatPrice } from "@/lib/formatPrice"

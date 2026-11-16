@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSub } from "@/lib/session"
 import { getOwnStore } from "@/services/storeService"
 import { setPublishedAction } from "./actions"
-import { deps } from "./deps"
+import { deps } from "@/services/deps"
 import { DeleteStoreForm } from "./DeleteStoreForm"
 import { StoreForm } from "./StoreForm"
 

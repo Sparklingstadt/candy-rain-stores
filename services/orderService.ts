@@ -4,7 +4,7 @@ import type { ShippingInfo } from "../lib/orderValidation"
 import { canTransition, ORDER_STATUSES, PAYMENT_DEADLINE_DAYS, type OrderStatus } from "../lib/orderStatus"
 import { cartVersion, lineProblem, lockCart, type CartLineProblem } from "./cartService"
 import { isUuid } from "./productService"
-import type { StoreDeps } from "./storeService"
+import type { StoreDeps } from "./deps"
 
 export type Buyer = { sub: string; name: string; email: string }
 export type OrderView = Order & { items: OrderItem[] } // items は作成順
