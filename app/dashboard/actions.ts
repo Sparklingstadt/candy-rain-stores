@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { SAVE_FAILED, text } from "@/lib/formData"
-import { prisma } from "@/lib/prisma"
 import { requireSub } from "@/lib/session"
 import { validateSlug, validateStoreFields, type FieldErrors } from "@/lib/storeValidation"
 import { deps } from "@/services/deps"
@@ -135,7 +134,6 @@ export async function deleteStoreAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
   const sub = await requireSub()
-  const store = await prisma.store.findUnique({ where: { ownerSub: sub }, select: { slug: true } })
   const result = await deleteStore(deps(), sub, text(formData, "confirmSlug"))
   if (!result.ok && result.code === "confirm_mismatch") {
     return { error: "ストア ID が一致しません" }
@@ -144,6 +142,6 @@ export async function deleteStoreAction(
     return { error: "対応中の注文があるため削除できません" }
   }
   revalidatePath("/dashboard")
-  if (store) revalidatePath("/s/" + store.slug)
+  if (result.ok) revalidatePath("/s/" + result.slug)
   return {}
 }
